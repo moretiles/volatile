@@ -1,0 +1,27 @@
+So you want to add a new operator to the language...
+Just complete these steps...
+
+lexer:
+- Update the logic in vltl_lexer_line_convert to correctly mark the operator you wish to add as an operator.
+ast:
+- Update the vltl_ast_operation_kind enum with a new enum.
+- Update the switch statement in vltl_ast_operation_precedence_determine.
+- Update the switch statement in vltl_ast_operation_kind_detokenize.
+- Update the switch statement in vltl_ast_operation_kind_valid.
+- Update the switch statement in vltl_ast_operation_kind_argc.
+- Update the switch statement in vltl_ast_tree_convert.
+sast:
+- Update the vltl_sast_operation_kind enum with a new enum.
+- Update the switch statement in vltl_sast_operation_kind_valid.
+- Update the switch statement in vltl_sast_operation_kind_argc.
+- Update the switch statement in vltl_sast_operation_kind_detokenize.
+- Update the switch statement in vltl_sast_tree_connect_recurse used to determine application logic for operations.
+- for(auto isa : isas) { Update the switch statement in vltl_sast_operation_convert_${isa}; }
+- for(auto isa : isas) { Write function vltl_sast_operation_convert_${isa}_${operation}; }
+asm_instruction:
+- Update the vltl_asm_instruction_amd64 enum with a new enum.
+- Update the switch statement in vltl_asm_instruction_amd64_valid.
+- Update the switch statement in vltl_asm_instruction_amd64_detokenize.
+compile:
+- Update the switch statement in vltl_compile_operation_operandify.
+- Update the switch statement in vltl_compile_operation_convert.
