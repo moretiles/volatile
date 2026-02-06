@@ -1,6 +1,7 @@
 #pragma once
 
 #include <isa.h>
+#include <ds/varena.h>
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -124,6 +125,7 @@ int vltl_global_registers_inuse(Vltl_global_register *reserve_this);
 extern struct vltl_global_config vltl_global_config;
 extern struct vltl_global_context vltl_global_context;
 extern struct vltl_global_registers vltl_global_registers;
+extern struct varena *vltl_global_allocator;
 
 // amd64 structs
 extern struct vltl_global_register vltl_global_register_amd64_rax;

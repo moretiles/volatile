@@ -1,7 +1,9 @@
 #include <global.h>
+#include <ds/varena.h>
 
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 Vltl_global_config vltl_global_config = {
     .isa = VLTL_ISA_AMD64,
@@ -13,6 +15,7 @@ Vltl_global_context vltl_global_context = {
     .line_number = 1
 };
 Vltl_global_registers vltl_global_registers = { 0 };
+Varena *vltl_global_allocator = NULL;
 
 Vltl_global_register vltl_global_register_amd64_rax = {
     .isa = VLTL_ISA_AMD64,
@@ -122,6 +125,20 @@ Vltl_global_register vltl_global_register_amd64_r15 = {
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
 };
 
+__attribute__((constructor)) int vltl_global_allocator_init() {
+    vltl_global_allocator = varena_create(5 * 1024 * 1024);
+    if(vltl_global_allocator == NULL) {
+        exit(ENOMEM);
+    }
+
+    int ret = varena_claim(&vltl_global_allocator, (5 * 1024 * 1024) - 1024);
+    if(ret != 0) {
+        exit(ret);
+    }
+
+    return 0;
+}
+
 __attribute__((constructor)) int vltl_global_registers_init() {
     vltl_global_registers_reset();
 
@@ -130,11 +147,11 @@ __attribute__((constructor)) int vltl_global_registers_init() {
         return vltl_global_registers_init_amd64();
         break;
     default:
-        return EINVAL;
+        exit(EINVAL);
         break;
     }
 
-    return EINVAL;
+    return 0;
 }
 
 int vltl_global_registers_init_amd64() {

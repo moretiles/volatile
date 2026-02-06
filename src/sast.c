@@ -45,48 +45,31 @@ bool vltl_sast_operation_incomplete(const Vltl_sast_operation operation) {
 
 int vltl_sast_operation_insert(
     Vltl_sast_tree *tree,
-    Vltl_sast_operation **created_child_ptr,
     Vltl_sast_operation *parent,
-    const Vltl_sast_operation new_child,
+    Vltl_sast_operation *new_child,
     size_t new_child_index
 ) {
-    Vltl_sast_operation *new_child_ptr;
-    int ret = 0;
-
     if(
         tree == NULL ||
-        created_child_ptr == NULL ||
         (parent != NULL && !vltl_sast_operation_valid(*parent)) ||
-        !vltl_sast_operation_valid(new_child)
+        new_child == NULL || !vltl_sast_operation_valid(*new_child)
     ) {
         return EINVAL;
     }
 
     // rearrange nodes themselves
     {
-        new_child_ptr = malloc(sizeof(Vltl_sast_operation));
-        if(new_child_ptr == NULL) {
-            return ENOMEM;
-        }
-        ret = vltl_sast_operation_copy(new_child_ptr, &new_child);
-        if(ret) {
-            return EINVAL;
-        }
-
         if(parent == NULL) {
             if(tree->root != NULL) {
-                free(new_child_ptr);
-                new_child_ptr = NULL;
                 return EINVAL;
             }
 
-            tree->root = new_child_ptr;
+            tree->root = new_child;
         } else {
-            parent->arguments[new_child_index] = new_child_ptr;
+            parent->arguments[new_child_index] = new_child;
         }
-        new_child_ptr->parent = parent;
-        new_child_ptr->belongs_to = tree;
-        *created_child_ptr = new_child_ptr;
+        new_child->parent = parent;
+        new_child->belongs_to = tree;
     }
 
     // vltl_sast_operation specific logic
@@ -98,62 +81,52 @@ int vltl_sast_operation_insert(
 
 int vltl_sast_operation_adopt(
     Vltl_sast_tree *tree,
-    Vltl_sast_operation **created_child_ptr,
-    Vltl_sast_operation new_parent,
+    Vltl_sast_operation *new_parent,
     Vltl_sast_operation *adopt_this
 ) {
-    int ret = 0;
-    Vltl_sast_operation *new_child_ptr, *new_parent_ptr, *original_parent;
-
     if(
         tree == NULL ||
-        created_child_ptr == NULL ||
-        !vltl_sast_operation_valid(new_parent) ||
-        !vltl_sast_operation_valid(*adopt_this)
+        new_parent == NULL || !vltl_sast_operation_valid(*new_parent) ||
+        adopt_this == NULL || !vltl_sast_operation_valid(*adopt_this)
     ) {
         return EINVAL;
     }
 
     // rearrange nodes themselves
     {
-        original_parent = adopt_this->parent;
-        new_child_ptr = malloc(sizeof(Vltl_sast_operation));
-        if(new_child_ptr == NULL) {
-            return ENOMEM;
-        }
-        ret = vltl_sast_operation_copy(new_child_ptr, adopt_this);
-        if(ret) {
-            return ret;
-        }
-        new_parent_ptr = adopt_this;
-
-        ret = vltl_sast_operation_copy(new_parent_ptr, &new_parent);
-        if(ret) {
-            return ret;
-        }
-        new_parent_ptr->belongs_to = tree;
-        new_parent_ptr->parent = original_parent;
-
-        // insert new_child_ptr as first non-null child for new_parent_ptr
+        // append adopt_this to the arguments of new_parent.
         {
-            Vltl_sast_operation **first_null_child = NULL;
-            for(size_t i = 0; i < VLTL_SAST_OPERATION_ARGUMENTS_MAX; i++) {
-                if(new_parent_ptr->arguments[i] == NULL) {
-                    first_null_child = &(new_parent_ptr->arguments[i]);
-                    break;
-                }
-            }
-            if(first_null_child == NULL) {
-                // The parent cannot hold this additional children.
-                free(new_child_ptr);
-                new_child_ptr = NULL;
-                return EXFULL;
-            }
-            *first_null_child = new_child_ptr;
-            new_child_ptr->parent = new_parent_ptr;
+            const size_t first_empty_pos = vltl_sast_operation_argc(*new_parent);
+            new_parent->arguments[first_empty_pos] = adopt_this;
         }
 
-        *created_child_ptr = new_child_ptr;
+        // adopt_this->parent[index of adopt_this in parent arguments] = new_parent
+        {
+            Vltl_sast_operation **parent_pointer_to_adopt_this = NULL;
+            if(adopt_this->parent == NULL) {
+                tree->root = new_parent;
+            } else {
+                for(size_t i = 0; i < VLTL_AST_OPERATION_ARGUMENTS_MAX; i++) {
+                    if(adopt_this->parent->arguments[i] == NULL) {
+                        parent_pointer_to_adopt_this = &(adopt_this->parent->arguments[i]);
+                        break;
+                    }
+                }
+                if(parent_pointer_to_adopt_this == NULL) {
+                    // The parent cannot hold this additional children.
+                    return EXFULL;
+                }
+                *parent_pointer_to_adopt_this = new_parent;
+            }
+        }
+
+        // update parent reference
+        {
+            new_parent->parent = adopt_this->parent;
+            adopt_this->parent = new_parent;
+        }
+
+        tree->last = new_parent;
     }
 
     // vltl_sast_operation specific logic
@@ -204,7 +177,9 @@ int vltl_sast_operation_insert_operand(
     const Vltl_asm_operand operand,
     size_t new_child_index
 ) {
-    Vltl_sast_operation created_here = { 0 };
+    Vltl_sast_operation *created_here = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    *created_child_ptr = created_here;
+
     int ret = 0;
     if(
         tree == NULL ||
@@ -216,7 +191,7 @@ int vltl_sast_operation_insert_operand(
     }
 
     Vltl_asm_operand empty_destination = { 0 };
-    ret = vltl_sast_operation_init(&created_here, VLTL_SAST_OPERATION_KIND_EVAL, operand, empty_destination);
+    ret = vltl_sast_operation_init(created_here, VLTL_SAST_OPERATION_KIND_EVAL, operand, empty_destination);
     if(ret != 0) {
         return ret;
     }
@@ -225,7 +200,7 @@ int vltl_sast_operation_insert_operand(
     if(parent_argc >= vltl_sast_operation_kind_argc(parent->kind)) {
         return EINVAL;
     }
-    return vltl_sast_operation_insert(tree, created_child_ptr, parent, created_here, new_child_index);
+    return vltl_sast_operation_insert(tree, parent, created_here, new_child_index);
 }
 
 int vltl_sast_operation_kind_detokenize(
@@ -548,22 +523,20 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             return EINVAL;
         }
 
-        Vltl_asm_operand register_operand = { 0 };
         Vltl_global_register *reserve_this = NULL;
-
         ret = vltl_global_registers_clear();
         if(ret != 0) {
             return ENOTRECOVERABLE;
         }
 
         // build a complete understanding of what registers are available
-        bool inner_done = false;
         Vltl_sast_operation *prev_parent = operation, *current_parent = operation->parent;
         for(
-                ;
-                current_parent != NULL;
-                prev_parent = current_parent, current_parent = current_parent->parent
-           ) {
+            ;
+            current_parent != NULL;
+            prev_parent = current_parent, current_parent = current_parent->parent
+        ) {
+            bool inner_done = false;
             for(size_t i = 0; !inner_done && i < vltl_sast_operation_argc(*current_parent); i++) {
                 Vltl_sast_operation *current_sibling = current_parent->arguments[i];
 
@@ -578,8 +551,8 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
                 }
 
                 ret = vltl_convert_asm_operand_to_global_register(
-                        &reserve_this, current_sibling->destination
-                        );
+                          &reserve_this, current_sibling->destination
+                      );
                 if(ret != 0) {
                     return EINVAL;
                 }
@@ -588,26 +561,20 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
                     return EINVAL;
                 }
             }
-
-            inner_done = false;
         }
 
         ret = vltl_global_registers_use(&reserve_this);
         if(ret != 0) {
             return EXFULL;
         }
+        Vltl_asm_operand register_operand = { 0 };
         vltl_convert_global_register_to_asm_operand(&register_operand, reserve_this);
         if(ret != 0) {
             return ENOTRECOVERABLE;
         }
 
-        Vltl_sast_operation *created_child = NULL;
-        operation->parent->arguments[0] = NULL;
-        ret = vltl_sast_operation_insert_operand(tree, &created_child, operation->parent, register_operand, 0);
-        if(ret != 0) {
-            return ret;
-        }
-        created_child->destination = register_operand;
+        operation->evaluates_to = register_operand;
+        operation->destination = register_operand;
     } else {
         const size_t initial_argc = vltl_sast_operation_argc(*operation);
         const size_t full_argc = vltl_sast_operation_kind_argc(operation->kind);
@@ -649,12 +616,12 @@ int vltl_sast_tree_connect(Vltl_sast_tree *tree) {
 }
 
 int vltl_sast_operation_convert_amd64_load(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     int ret = 0;
-    Vltl_sast_operation *root = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *source_operation = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *destination_operation = calloc(1, sizeof(Vltl_sast_operation));
+    Vltl_sast_operation *root = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    Vltl_sast_operation *source_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    Vltl_sast_operation *destination_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     if(source_operation == NULL || destination_operation == NULL) {
         return ENOMEM;
     }
@@ -669,7 +636,7 @@ int vltl_sast_operation_convert_amd64_load(
     Vltl_asm_operand evaluates_to = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
-            .type = src->evaluates_to->literal.type,
+            .integral_type = src->evaluates_to->literal.type->integral_type,
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = (uint64_t) src->evaluates_to->literal.fields[0]
         }
@@ -692,7 +659,7 @@ int vltl_sast_operation_convert_amd64_load(
         .evaluates_to = evaluates_to
     };
 
-    *equivalent = *root;
+    *equivalent = root;
 
     // don't push to insert_below_next
     (void) insert_below_next;
@@ -700,7 +667,7 @@ int vltl_sast_operation_convert_amd64_load(
 }
 
 int vltl_sast_operation_convert_amd64_store(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     // TODO:
     // get symbols working and store to actual destination!
@@ -714,32 +681,21 @@ int vltl_sast_operation_convert_amd64_store(
 }
 
 int vltl_sast_operation_convert_amd64_add(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-    Vltl_sast_operation *root = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *destination_operation = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *add_operation = calloc(1, sizeof(Vltl_sast_operation));
-    if(destination_operation == NULL || add_operation == NULL) {
+    Vltl_sast_operation *add_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(add_operation == NULL) {
         return ENOMEM;
     }
 
-    *root = (Vltl_sast_operation) {
-        .kind = VLTL_SAST_OPERATION_KIND_STORE,
-        .arguments = { destination_operation, add_operation },
-    };
-
-    // TODO:
-    // get symbols working and store to actual destination!
+    // don't use src for anything
     (void) src;
-    *destination_operation = vltl_sast_operation_tbd;
-    destination_operation->parent = root;
-
     *add_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_ADD,
-        .parent = root
+        .parent = NULL
     };
 
-    *equivalent = *root;
+    *equivalent = add_operation;
 
     // push twice for the lchild and rchild of the addition itself
     vstack_push(insert_below_next, &add_operation);
@@ -748,32 +704,22 @@ int vltl_sast_operation_convert_amd64_add(
 }
 
 int vltl_sast_operation_convert_amd64_sub(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-    Vltl_sast_operation *root = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *destination_operation = calloc(1, sizeof(Vltl_sast_operation));
-    Vltl_sast_operation *sub_operation = calloc(1, sizeof(Vltl_sast_operation));
-    if(destination_operation == NULL || sub_operation == NULL) {
+    Vltl_sast_operation *sub_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(sub_operation == NULL) {
         return ENOMEM;
     }
 
-    *root = (Vltl_sast_operation) {
-        .kind = VLTL_SAST_OPERATION_KIND_STORE,
-        .arguments = { destination_operation, sub_operation },
-    };
-
-    // TODO:
-    // get symbols working and store to actual destination!
-    (void) src;
-    *destination_operation = vltl_sast_operation_tbd;
-    destination_operation->parent = root;
+    // Don't use src for anything
+    (void) *src;
 
     *sub_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_SUB,
-        .parent = root
+        .parent = NULL
     };
 
-    *equivalent = *root;
+    *equivalent = sub_operation;
 
     // push twice for the lchild and rchild of the subtraction itself
     vstack_push(insert_below_next, &sub_operation);
@@ -782,7 +728,7 @@ int vltl_sast_operation_convert_amd64_sub(
 }
 
 int vltl_sast_operation_convert_amd64(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     switch(src->kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
@@ -804,7 +750,7 @@ int vltl_sast_operation_convert_amd64(
 }
 
 int vltl_sast_operation_convert(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     if(equivalent == NULL || insert_below_next == NULL || src == NULL || !vltl_ast_operation_valid(*src)) {
         return EINVAL;
@@ -828,8 +774,8 @@ static int vltl_sast_tree_convert_helper(
 ) {
     int ret = 0;
     Vltl_ast_operation *current_operation = NULL;
-    Vltl_sast_operation created = { 0 };
-    Vltl_sast_operation *insert_below = NULL, *created_child = NULL;
+    Vltl_sast_operation *created = NULL;
+    Vltl_sast_operation *insert_below = NULL;
     if(dest == NULL || src == NULL) {
         return EINVAL;
     }
@@ -862,7 +808,7 @@ static int vltl_sast_tree_convert_helper(
     if(ret != 0) {
         return ret;
     }
-    ret = vltl_sast_operation_insert(dest, &created_child, insert_below, created, insert_below_argc);
+    ret = vltl_sast_operation_insert(dest, insert_below, created, insert_below_argc);
     if(ret != 0) {
         return ret;
     }

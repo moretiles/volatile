@@ -2,6 +2,9 @@
 #include <compile.h>
 
 #include <errno.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 
 int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_operation operation) {
     if(dest == NULL || !vltl_sast_operation_valid(operation)) {
@@ -135,4 +138,147 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     }
 
     return vltl_compile_convert_recurse(dest, src, src->root);
+}
+
+int vltl_compile_file(char *dest_filename, char *src_filename) {
+    int ret = 0;
+    FILE *src_file = NULL;
+    FILE *assembly_file = NULL;
+    FILE *dest_file = NULL;
+    const size_t filename_cap = 99;
+    if(
+        dest_filename == NULL || strlen(dest_filename) > filename_cap ||
+        src_filename == NULL || strlen(src_filename) > filename_cap
+    ) {
+        ret = EINVAL;
+        goto vltl_compile_file_error;
+    }
+
+    src_file = fopen(src_filename, "r");
+    if(!src_file) {
+        ret = EINVAL;
+        goto vltl_compile_file_error;
+    }
+
+    const char *assembly_filename_extension = ".S";
+    const size_t dest_filename_len = strlen(dest_filename);
+    const size_t assembly_filename_extension_len = strlen(assembly_filename_extension);
+    char *assembly_filename = varena_alloc(&vltl_global_allocator, 2 * filename_cap);
+    memcpy(&(assembly_filename[0]), dest_filename, dest_filename_len);
+    memcpy(&(assembly_filename[dest_filename_len]), assembly_filename_extension, assembly_filename_extension_len);
+    assembly_filename[dest_filename_len + assembly_filename_extension_len] = 0;
+    assembly_file = fopen(assembly_filename, "w");
+    if(!assembly_file) {
+        goto vltl_compile_file_error;
+    }
+
+    dest_file = fopen(dest_filename, "w");
+    if(!dest_file) {
+        ret = EINVAL;
+        goto vltl_compile_file_error;
+    }
+
+    const size_t big_buf_cap = 9999;
+    char *big_buf = varena_alloc(&vltl_global_allocator, big_buf_cap);
+    if(big_buf == NULL) {
+        ret = ENOMEM;
+        goto vltl_compile_file_error;
+    }
+
+    fputs(".intel_syntax\n", assembly_file);
+    fputs("\n", assembly_file);
+    fputs(".global main\n", assembly_file);
+    fputs("\n", assembly_file);
+    fputs("main:\n", assembly_file);
+
+    bool done = false;
+    size_t line_number = 1;
+    char *start_of_line = &(big_buf[0]);
+    if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
+        done = true;
+    }
+    while(!done){
+        Vltl_lexer_line line = { 0 };
+        Vltl_ast_tree ast_tree = { 0 };
+        Vltl_sast_tree sast_tree = { 0 };
+
+        // lexer
+        ret = vltl_lexer_line_convert(&line, start_of_line);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+
+        // ast tree
+        ret = vltl_ast_tree_convert(&ast_tree, &line);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+        //vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+        //fputs(buf, file);
+
+        // sast tree
+        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+        //vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+        //fputs(buf, file);
+
+        // compile
+        fprintf(assembly_file, "// line #%lu\n", line_number++);
+        ret = vltl_compile_convert(assembly_file, &sast_tree);
+        fputs("\n", assembly_file);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+
+        {
+            if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
+                done = true;
+            }
+        }
+    }
+
+    fputs("mov %rax, %r11\n", assembly_file);
+    fputs("ret\n", assembly_file);
+    
+    // Once I get more of an idea of how I want to handle symbols/linking then can write code to fork and call gcc
+    //const char *gcc_path = "/bin/gcc";
+    //char *gcc_argv[4] = {"/bin/gcc", assembly_filename, "-o", dest_filename};
+    //char **gcc_envp = NULL;
+    //if(!fork()) {
+    //  ret = execve(gcc_path, gcc_argv, gcc_envp);
+    //} else {
+    //  wait for child
+    //}
+    //if(ret) {
+        //goto vltl_compile_file_error;
+    //}
+
+vltl_compile_file_error:
+    if(src_file) {
+        fflush(src_file);
+        fclose(src_file);
+        src_file = NULL;
+    }
+    if(big_buf) {
+        // do nothing
+        big_buf = NULL;
+    }
+    if(assembly_filename) {
+        // do nothing
+        assembly_filename = NULL;
+    }
+    if(assembly_file) {
+        fflush(assembly_file);
+        fclose(assembly_file);
+        assembly_file = NULL;
+    }
+    if(dest_file) {
+        fflush(dest_file);
+        fclose(dest_file);
+        dest_file = NULL;
+    }
+
+    return ret;
 }

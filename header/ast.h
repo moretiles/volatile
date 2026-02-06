@@ -69,7 +69,13 @@ typedef struct vltl_ast_operation {
 
     struct vltl_ast_tree *belongs_to;
     struct vltl_ast_operation *parent;
-    struct vltl_ast_operation *arguments[VLTL_AST_OPERATION_ARGUMENTS_MAX];
+    union {
+        struct vltl_ast_operation *arguments[VLTL_AST_OPERATION_ARGUMENTS_MAX];
+        struct {
+            struct vltl_ast_operation *lchild;
+            struct vltl_ast_operation *rchild;
+        };
+    };
     // pointer to the node on the sast tree representing this operation with less abstraction
     struct vltl_sast_operation *equivalent;
 
@@ -135,12 +141,10 @@ int vltl_ast_operation_init(
 );
 
 // Insert new_child into tree below parent at parent->arguments[new_child_index].
-// Address of memory allocated to store new_child persistently will be placed in *(created_child_ptr)
 int vltl_ast_operation_insert(
     Vltl_ast_tree *tree,
-    Vltl_ast_operation **created_child_ptr,
     Vltl_ast_operation *parent,
-    const Vltl_ast_operation new_child,
+    Vltl_ast_operation *new_child,
     size_t new_child_index
 );
 
@@ -151,8 +155,7 @@ int vltl_ast_operation_insert(
 //   (4) Set the first non-null argument of the new_parent to point to the adopted child
 int vltl_ast_operation_adopt(
     Vltl_ast_tree *tree,
-    Vltl_ast_operation **created_parent_ptr,
-    Vltl_ast_operation new_parent,
+    Vltl_ast_operation *new_parent,
     Vltl_ast_operation *adopt_this
 );
 
@@ -167,7 +170,7 @@ int vltl_ast_tree_detokenize(
 
 // Insert operation into tree
 // In consideration of the existing state of the tree and the priority of operation reordering may occur
-int vltl_ast_tree_insert(Vltl_ast_tree *tree, const Vltl_ast_operation pushed);
+int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed);
 
 // Build ast_tree in dest from lexer_line in src.
 // Continue calling while value returned is 0.

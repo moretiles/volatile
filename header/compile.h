@@ -48,8 +48,8 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
 // Involves making post-order traversal of src writing compiled instructions to dest as operations appear.
 int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src);
 
-// Compile source code in file named src_filename, write binary to file named dest_binary.
-int vltl_compile_file(const char *dest_binary, const char *src_filename);
+// Compile source code in file named src_filename, write assembly to file named dest_filename.
+int vltl_compile_file(char *dest_filename, char *src_filename);
 
 #ifdef __cplusplus
 }

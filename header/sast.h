@@ -30,7 +30,13 @@ typedef struct vltl_sast_operation {
 
     struct vltl_sast_tree *belongs_to;
     struct vltl_sast_operation *parent;
-    struct vltl_sast_operation *arguments[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
+    union {
+        struct vltl_sast_operation *arguments[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
+        struct {
+            struct vltl_sast_operation *lchild;
+            struct vltl_sast_operation *rchild;
+        };
+    };
     // pointer to the node on the ast tree representing this operation more abstractly
     struct vltl_ast_operation *equivalent;
 
@@ -85,9 +91,8 @@ int vltl_sast_operation_init(
 // Address of memory allocated to store new_child persistently will be placed in *(created_child_ptr).
 int vltl_sast_operation_insert(
     Vltl_sast_tree *tree,
-    Vltl_sast_operation **created_child_ptr,
     Vltl_sast_operation *parent,
-    const Vltl_sast_operation new_child,
+    Vltl_sast_operation *new_child,
     size_t new_child_index
 );
 
@@ -105,8 +110,7 @@ int vltl_sast_operation_insert_operand(
 //   (3) Take over position occupied by adopt_this in the tree.
 int vltl_sast_operation_adopt(
     Vltl_sast_tree *tree,
-    Vltl_sast_operation **created_parent_ptr,
-    Vltl_sast_operation new_parent,
+    Vltl_sast_operation *new_parent,
     Vltl_sast_operation *adopt_this
 );
 
@@ -132,7 +136,7 @@ int vltl_sast_tree_detokenize(
 // Important to note that memory will be allocated for child nodes, however, equivalent is used to store the root.
 // Equivalent is incomplete so operations at or below it requiring args are pushed to insert_below_next.
 int vltl_sast_operation_convert(
-    Vltl_sast_operation *equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 );
 
 // Convert the tree of many Vltl_ast_operation from src to a tree of many Vltl_sast_operation in dest.
