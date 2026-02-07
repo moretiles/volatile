@@ -43,5 +43,5 @@ asm
 /scratch/
 
 # temporary test files
-/tests/*/.S
-/tests/*/.bin
+/tests/*/*.S
+/tests/*/*.bin
