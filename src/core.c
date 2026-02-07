@@ -9,6 +9,7 @@
 #include <lang/core.c>
 #include <lexer.c>
 #include <sast.c>
+#include <siphash.c>
 
 int main(void) {
     return 0;

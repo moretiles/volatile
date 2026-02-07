@@ -1,6 +1,11 @@
-#include <global.h>
 #include <ds/varena.h>
+#include <global.h>
+#include <lang/operation.h>
+#include <lang/constant.h>
+#include <lang/global.h>
+#include <lang/local.h>
 
+#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -16,6 +21,12 @@ Vltl_global_context vltl_global_context = {
 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
+Nkht *vltl_global_table_constants = NULL;
+Nkht *vltl_global_table_globals = NULL;
+Nkht *vltl_global_table_locals = NULL;
+Nkht *vltl_global_table_types = NULL;
+Nkht *vltl_global_table_operations = NULL;
+Nkht *vltl_global_table_attributes = NULL;
 
 Vltl_global_register vltl_global_register_amd64_rax = {
     .isa = VLTL_ISA_AMD64,
@@ -125,6 +136,21 @@ Vltl_global_register vltl_global_register_amd64_r15 = {
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
 };
 
+__attribute__((constructor)) int vltl_global_registers_init() {
+    vltl_global_registers_reset();
+
+    switch(vltl_global_config.isa) {
+    case VLTL_ISA_AMD64:
+        return vltl_global_registers_init_amd64();
+        break;
+    default:
+        exit(EINVAL);
+        break;
+    }
+
+    return 0;
+}
+
 __attribute__((constructor)) int vltl_global_allocator_init() {
     vltl_global_allocator = varena_create(5 * 1024 * 1024);
     if(vltl_global_allocator == NULL) {
@@ -139,17 +165,102 @@ __attribute__((constructor)) int vltl_global_allocator_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_registers_init() {
-    vltl_global_registers_reset();
+__attribute__((constructor)) int vltl_global_table_constants_init() {
+    Vltl_lang_constant *current_constant_ptr = NULL;
 
-    switch(vltl_global_config.isa) {
-    case VLTL_ISA_AMD64:
-        return vltl_global_registers_init_amd64();
-        break;
-    default:
-        exit(EINVAL);
-        break;
+    vltl_global_table_constants = nkht_create(sizeof(Vltl_lang_constant *));
+    if(vltl_global_table_constants == NULL) {
+        exit(ENOMEM);
     }
+
+    current_constant_ptr = &vltl_lang_constant_zero;
+    assert(0 == nkht_set(vltl_global_table_constants, current_constant_ptr->name, &current_constant_ptr));
+    current_constant_ptr = &vltl_lang_constant_one;
+    assert(0 == nkht_set(vltl_global_table_constants, current_constant_ptr->name, &current_constant_ptr));
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_table_globals_init() {
+    Vltl_lang_global *current_global_ptr = NULL;
+
+    vltl_global_table_globals = nkht_create(sizeof(Vltl_lang_global *));
+    if(vltl_global_table_globals == NULL) {
+        exit(ENOMEM);
+    }
+
+    current_global_ptr = &vltl_lang_global_a;
+    assert(0 == nkht_set(vltl_global_table_globals, current_global_ptr->name, &current_global_ptr));
+    current_global_ptr = &vltl_lang_global_b;
+    assert(0 == nkht_set(vltl_global_table_globals, current_global_ptr->name, &current_global_ptr));
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_table_locals_init() {
+    Vltl_lang_local *current_local_ptr = NULL;
+
+    vltl_global_table_locals = nkht_create(sizeof(Vltl_lang_local *));
+    if(vltl_global_table_locals == NULL) {
+        exit(ENOMEM);
+    }
+
+    current_local_ptr = &vltl_lang_local_c;
+    assert(0 == nkht_set(vltl_global_table_locals, current_local_ptr->name, &current_local_ptr));
+    current_local_ptr = &vltl_lang_local_d;
+    assert(0 == nkht_set(vltl_global_table_locals, current_local_ptr->name, &current_local_ptr));
+
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_table_types_init() {
+    Vltl_lang_type *lang_type_ptr = NULL;
+
+    vltl_global_table_types = nkht_create(sizeof(Vltl_lang_type *));
+    if(vltl_global_table_types == NULL) {
+        exit(ENOMEM);
+    }
+
+    lang_type_ptr = &vltl_lang_type_long;
+    assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
+    lang_type_ptr = &vltl_lang_type_int;
+    assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
+    lang_type_ptr = &vltl_lang_type_short;
+    assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
+    lang_type_ptr = &vltl_lang_type_char;
+    assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_table_operations_init() {
+    Vltl_lang_operation *lang_operation_ptr = NULL;
+
+    vltl_global_table_operations = nkht_create(sizeof(Vltl_lang_operation *));
+    if(vltl_global_table_operations == NULL) {
+        exit(ENOMEM);
+    }
+
+    lang_operation_ptr = &vltl_lang_operation_add;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+    lang_operation_ptr = &vltl_lang_operation_sub;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_table_attributes_init() {
+    Vltl_lang_type_attribute *current_attribute_ptr;
+    vltl_global_table_attributes = nkht_create(sizeof(Vltl_lang_type_attribute *));
+    if(vltl_global_table_attributes == NULL) {
+        exit(ENOMEM);
+    }
+
+    current_attribute_ptr = &vltl_lang_type_attribute_signed;
+    assert(0 == nkht_set(
+               vltl_global_table_attributes, current_attribute_ptr->name, &current_attribute_ptr)
+          );
+    current_attribute_ptr = &vltl_lang_type_attribute_unsigned;
+    assert(0 == nkht_set(
+               vltl_global_table_attributes, current_attribute_ptr->name, &current_attribute_ptr)
+          );
 
     return 0;
 }

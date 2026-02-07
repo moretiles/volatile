@@ -16,6 +16,15 @@ bool vltl_lang_type_integral_valid(const Vltl_lang_type_integral type_integral) 
     return true;
 }
 
+Vltl_lang_type_attribute vltl_lang_type_attribute_signed = {
+    .attribute_kind = VLTL_LANG_TYPE_ATTRIBUTE_KIND_SIGNED,
+    .name = "signed"
+};
+Vltl_lang_type_attribute vltl_lang_type_attribute_unsigned = {
+    .attribute_kind = VLTL_LANG_TYPE_ATTRIBUTE_KIND_UNSIGNED,
+    .name = "unsigned"
+};
+
 Vltl_lang_type vltl_lang_type_long = {
     .name = "long", .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64, .accepted_fields = { 0 }
 };

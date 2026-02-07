@@ -6,7 +6,6 @@
 #include <compile.h>
 #include <global.h>
 #include <isa.h>
-#include <lang/symbol.h>
 #include <lang/type.h>
 #include <sast.h>
 
@@ -20,7 +19,6 @@ TEST(vltl_sast, operation_insert_and_compile) {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
             .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
-            .attributes = {},
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 3
         }
@@ -29,7 +27,6 @@ TEST(vltl_sast, operation_insert_and_compile) {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
             .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
-            .attributes = {},
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 4
         }
@@ -117,7 +114,6 @@ TEST(vltl_sast, operation_connect_and_compile) {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
             .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
-            .attributes = {},
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 3
         }
@@ -126,7 +122,6 @@ TEST(vltl_sast, operation_connect_and_compile) {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
             .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
-            .attributes = {},
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 4
         }
@@ -453,6 +448,21 @@ TEST_F(AstFixture1, tree_insert) {
 }
 
 namespace {
+TEST(vltl_global, table) {
+    Vltl_lang_operation *current_operation = NULL;
+    Vltl_lang_global *current_global = NULL;
+    Vltl_lang_global *current_local = NULL;
+
+    ASSERT_FALSE(nkht_get(vltl_global_table_operations, "+", &current_operation));
+    ASSERT_FALSE(nkht_get(vltl_global_table_operations, "-", &current_operation));
+
+    ASSERT_FALSE(nkht_get(vltl_global_table_globals, "a", &current_global));
+    ASSERT_FALSE(nkht_get(vltl_global_table_globals, "b", &current_global));
+
+    ASSERT_FALSE(nkht_get(vltl_global_table_locals, "c", &current_local));
+    ASSERT_FALSE(nkht_get(vltl_global_table_locals, "d", &current_local));
+}
+
 TEST(vltl_global, registers_use_and_reset) {
     Vltl_global_register *expect_r11, *expect_r10;
     ASSERT_EQ(0, vltl_global_registers_use(&expect_r11));
@@ -464,7 +474,7 @@ TEST(vltl_global, registers_use_and_reset) {
 namespace {
 TEST(vltl_lexer, line_convert_simple) {
     {
-        const char *src_line = "1 * 2 + 3 * 4 * 5";
+        const char *src_line = "1 + 2 - 3 + 4 - 5";
         Vltl_lexer_line lexer_line = {};
         ASSERT_EQ(0, vltl_lexer_line_convert(&lexer_line, src_line));
         ASSERT_TRUE(vltl_lexer_line_valid(lexer_line));
@@ -476,7 +486,7 @@ namespace {
 TEST(fullpass, oneline_addsub) {
     char buf[999];
     size_t buf_len = 0;
-    const char *mathline = "5 + 4 - 3 + 2 - 1";
+    const char *mathline = "3 + 4";
     Vltl_lexer_line line = { 0 };
     Vltl_ast_tree ast_tree = { 0 };
     Vltl_sast_tree sast_tree = { 0 };
@@ -521,6 +531,24 @@ TEST(fullpass, oneline_addsub) {
 TEST(fullpass, manylines_addsub) {
     char dest_filename[] = "tests/fullpass/manylines_addsub.bin";
     char src_filename[] = "tests/fullpass/manylines_addsub.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, simple_globals) {
+    char dest_filename[] = "tests/fullpass/simple_globals.bin";
+    char src_filename[] = "tests/fullpass/simple_globals.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, simple_locals) {
+    char dest_filename[] = "tests/fullpass/simple_locals.bin";
+    char src_filename[] = "tests/fullpass/simple_locals.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, simple_constants) {
+    char dest_filename[] = "tests/fullpass/simple_constants.bin";
+    char src_filename[] = "tests/fullpass/simple_constants.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 }

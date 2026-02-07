@@ -619,6 +619,7 @@ int vltl_sast_operation_convert_amd64_load(
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     int ret = 0;
+    Vltl_asm_operand evaluates_to = { 0 };
     Vltl_sast_operation *root = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *source_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *destination_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
@@ -626,40 +627,133 @@ int vltl_sast_operation_convert_amd64_load(
         return ENOMEM;
     }
 
-    if(
-        src->evaluates_to == NULL ||
-        src->evaluates_to->kind != VLTL_LANG_TOKEN_KIND_LITERAL
-    ) {
+    if( src->evaluates_to == NULL) {
         return EINVAL;
     }
 
-    Vltl_asm_operand evaluates_to = {
-        .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
-        .as_immediate = {
-            .integral_type = src->evaluates_to->literal.type->integral_type,
-            .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
-            .value = (uint64_t) src->evaluates_to->literal.fields[0]
+    switch(src->evaluates_to->kind) {
+    case VLTL_LANG_TOKEN_KIND_LITERAL:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
+            .as_immediate = {
+                .integral_type = src->evaluates_to->literal.type->integral_type,
+                .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
+                .value = (uint64_t) src->evaluates_to->literal.fields[0]
+            }
+        };
+        if(ret != 0) {
+            return ret;
         }
-    };
-    if(ret != 0) {
-        return ret;
+        *root = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_LOAD,
+            .arguments = { destination_operation, source_operation },
+            .evaluates_to = evaluates_to
+        };
+    
+        *destination_operation = vltl_sast_operation_tbd;
+        destination_operation->parent = root;
+    
+        *source_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .parent = root,
+            .evaluates_to = evaluates_to
+        };
+    
+        *equivalent = root;
+        break;
+    case VLTL_LANG_TOKEN_KIND_GLOBAL:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+            .as_memory = {
+                .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_GLOBAL,
+                .name = src->evaluates_to->global->name,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .value = 0
+            }
+        };
+        if(ret != 0) {
+            return ret;
+        }
+        *root = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_LOAD,
+            .arguments = { destination_operation, source_operation },
+            .evaluates_to = evaluates_to
+        };
+    
+        *destination_operation = vltl_sast_operation_tbd;
+        destination_operation->parent = root;
+    
+        *source_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .parent = root,
+            .evaluates_to = evaluates_to
+        };
+    
+        *equivalent = root;
+        break;
+    case VLTL_LANG_TOKEN_KIND_LOCAL:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+            .as_memory = {
+                .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                .name = src->evaluates_to->local->name,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .value = 0
+            }
+        };
+        if(ret != 0) {
+            return ret;
+        }
+        *root = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_LOAD,
+            .arguments = { destination_operation, source_operation },
+            .evaluates_to = evaluates_to
+        };
+    
+        *destination_operation = vltl_sast_operation_tbd;
+        destination_operation->parent = root;
+    
+        *source_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .parent = root,
+            .evaluates_to = evaluates_to
+        };
+    
+        *equivalent = root;
+        break;
+    case VLTL_LANG_TOKEN_KIND_CONSTANT:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
+            .as_immediate = {
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
+                .value = (uint64_t) src->evaluates_to->literal.fields[0]
+            }
+        };
+        if(ret != 0) {
+            return ret;
+        }
+        *root = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_LOAD,
+            .arguments = { destination_operation, source_operation },
+            .evaluates_to = evaluates_to
+        };
+    
+        *destination_operation = vltl_sast_operation_tbd;
+        destination_operation->parent = root;
+    
+        *source_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .parent = root,
+            .evaluates_to = evaluates_to
+        };
+    
+        *equivalent = root;
+        break;
+    default:
+        return EINVAL;
+        break;
     }
-    *root = (Vltl_sast_operation) {
-        .kind = VLTL_SAST_OPERATION_KIND_LOAD,
-        .arguments = { destination_operation, source_operation },
-        .evaluates_to = evaluates_to
-    };
-
-    *destination_operation = vltl_sast_operation_tbd;
-    destination_operation->parent = root;
-
-    *source_operation = (Vltl_sast_operation) {
-        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-        .parent = root,
-        .evaluates_to = evaluates_to
-    };
-
-    *equivalent = root;
 
     // don't push to insert_below_next
     (void) insert_below_next;

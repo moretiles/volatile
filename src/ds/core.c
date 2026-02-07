@@ -1,4 +1,7 @@
 #include <ds/pointerarith.c>
 #include <ds/varena.c>
+#include <ds/varray.c>
 #include <ds/vqueue.c>
 #include <ds/vstack.c>
+#include <ds/vht.c>
+#include <ds/nkht.c>

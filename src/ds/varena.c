@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 Varena *varena_create(size_t num_bytes) {
     Varena *ret;
@@ -93,7 +94,7 @@ size_t varena_frame_unused(Varena *arena) {
 }
 
 struct varena_frame *varena_frame_top(Varena *arena) {
-    if(arena == NULL || arena->bottom < sizeof(struct varena_frame)) {
+    if(arena == NULL || arena->bottom == 0 || arena->bottom < sizeof(struct varena_frame)) {
         return NULL;
     }
 
@@ -167,7 +168,9 @@ void *varena_alloc(Varena **arena_ptr, size_t num_bytes) {
         return NULL;
     }
 
-    if(arena->top + num_bytes > arena->bottom - sizeof(struct varena_frame)) {
+    const bool frame_empty = arena->bottom == 0;
+    const bool frame_at_capacity = (arena->top + num_bytes > arena->bottom - sizeof(struct varena_frame));
+    if(frame_empty || frame_at_capacity) {
         return NULL;
     }
     ret = pointer_literal_addition(arena->bytes, arena->top);

@@ -22,12 +22,17 @@ typedef enum vltl_lang_type_integral {
     VLTL_LANG_TYPE_INTEGRAL_USERDEFINED
 } Vltl_lang_type_integral;
 
-typedef enum vltl_lang_type_attribute {
-    VLTL_LANG_TYPE_ATTRIBUTE_UNSET,
-    VLTL_LANG_TYPE_ATTRIBUTE_INVALID,
+typedef enum vltl_lang_type_attribute_kind {
+    VLTL_LANG_TYPE_ATTRIBUTE_KIND_UNSET,
+    VLTL_LANG_TYPE_ATTRIBUTE_KIND_INVALID,
 
-    VLTL_LANG_TYPE_ATTRIBUTE_SIGNED,
-    VLTL_LANG_TYPE_ATTRIBUTE_UNSIGNED
+    VLTL_LANG_TYPE_ATTRIBUTE_KIND_SIGNED,
+    VLTL_LANG_TYPE_ATTRIBUTE_KIND_UNSIGNED
+} Vltl_lang_type_attribute_kind;
+
+typedef struct vltl_lang_type_attribute {
+    Vltl_lang_type_attribute_kind attribute_kind;
+    const char *name;
 } Vltl_lang_type_attribute;
 
 typedef struct vltl_lang_type {
@@ -39,6 +44,10 @@ typedef struct vltl_lang_type {
 } Vltl_lang_type;
 
 bool vltl_lang_type_integral_valid(const Vltl_lang_type_integral type_integral);
+
+// attributes
+extern Vltl_lang_type_attribute vltl_lang_type_attribute_signed;
+extern Vltl_lang_type_attribute vltl_lang_type_attribute_unsigned;
 
 // default types
 extern Vltl_lang_type vltl_lang_type_long;

@@ -13,9 +13,8 @@ extern "C" {
 #define VLTL_LEXER_LINE_TOKENS_MAX (20)
 
 typedef struct vltl_lexer_token {
-    size_t offset;
-    size_t length;
-    Vltl_lang_token_kind kind;
+    const char *line;
+    Vltl_lang_token token;
 } Vltl_lexer_token;
 
 typedef struct vltl_lexer_line {
@@ -32,11 +31,15 @@ typedef struct vltl_lexer_line {
 bool vltl_lexer_line_valid(const Vltl_lexer_line line);
 int vltl_lexer_token_init(
     Vltl_lexer_token *dest,
-    size_t offset,
-    size_t length,
-    Vltl_lang_token_kind kind
+    const char *line,
+    Vltl_lang_token token
 );
 int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src);
+int vltl_lexer_token_chomp(
+    size_t *start_of_next_token, size_t *end_of_next_token,
+    Vltl_lang_token_kind *presumed_token_kind, const char *line
+);
+int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vltl_lang_token_kind token_kind);
 
 #ifdef __cplusplus
 }

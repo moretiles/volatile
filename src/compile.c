@@ -189,6 +189,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     fputs("\n", assembly_file);
     fputs(".global main\n", assembly_file);
     fputs("\n", assembly_file);
+    fputs(".text\n", assembly_file);
     fputs("main:\n", assembly_file);
 
     bool done = false;
@@ -197,7 +198,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
         done = true;
     }
-    while(!done){
+    while(!done) {
         Vltl_lexer_line line = { 0 };
         Vltl_ast_tree ast_tree = { 0 };
         Vltl_sast_tree sast_tree = { 0 };
@@ -241,7 +242,66 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
 
     fputs("mov %rax, %r11\n", assembly_file);
     fputs("ret\n", assembly_file);
-    
+    fputs("\n", assembly_file);
+
+    fputs(".data\n", assembly_file);
+
+    // Write all globals
+    {
+        Nkht_iterator iterator = { 0 };
+        char *iterated_global_key = NULL;
+        Vltl_lang_global *iterated_global_val = NULL;
+        ret = nkht_iterate_start(vltl_global_table_globals, &iterator);
+        if(ret) {
+            return ret;
+        }
+
+        while(
+                nkht_iterate_next(
+                    vltl_global_table_globals, &iterator, (void *) &iterated_global_key, &iterated_global_val
+                    ) != ENODATA
+             ) {
+            if(iterated_global_key == NULL || iterated_global_val == NULL) {
+                return EINVAL;
+            }
+
+            fprintf(
+                assembly_file,
+                "%s: .long %ld\n",
+                iterated_global_key,
+                (int64_t) iterated_global_val->literal->fields[0]
+            );
+        }
+    }
+
+    // Write all constants
+    {
+        Nkht_iterator iterator = { 0 };
+        char *iterated_constant_key = NULL;
+        Vltl_lang_constant *iterated_constant_val = NULL;
+        ret = nkht_iterate_start(vltl_global_table_constants, &iterator);
+        if(ret) {
+            return ret;
+        }
+
+        while(
+                nkht_iterate_next(
+                    vltl_global_table_constants, &iterator, (void *) &iterated_constant_key, &iterated_constant_val
+                    ) != ENODATA
+             ) {
+            if(iterated_constant_key == NULL || iterated_constant_val == NULL) {
+                return EINVAL;
+            }
+
+            fprintf(
+                assembly_file,
+                "%s: .long %ld\n",
+                iterated_constant_key,
+                (int64_t) iterated_constant_val->literal->fields[0]
+            );
+        }
+    }
+
     // Once I get more of an idea of how I want to handle symbols/linking then can write code to fork and call gcc
     //const char *gcc_path = "/bin/gcc";
     //char *gcc_argv[4] = {"/bin/gcc", assembly_filename, "-o", dest_filename};
@@ -252,7 +312,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     //  wait for child
     //}
     //if(ret) {
-        //goto vltl_compile_file_error;
+    //goto vltl_compile_file_error;
     //}
 
 vltl_compile_file_error:

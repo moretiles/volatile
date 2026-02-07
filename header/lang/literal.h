@@ -7,7 +7,9 @@ extern "C" {
 #define VLTL_LANG_LITERAL_FIELDS_CAP (9)
 
 typedef struct vltl_lang_literal {
+    const char *name;
     const Vltl_lang_type *type;
+    Vltl_lang_type_attribute *attributes[9];
     void *fields[VLTL_LANG_LITERAL_FIELDS_CAP];
 } Vltl_lang_literal;
 

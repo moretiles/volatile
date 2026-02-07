@@ -648,10 +648,47 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             return ENOMEM;
         }
 
-        switch(src->tokens[i].kind) {
-        case VLTL_LANG_TOKEN_KIND_SYMBOL:
+        switch(src->tokens[i].token.kind) {
+        case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
+        case VLTL_LANG_TOKEN_KIND_TYPE:
             // not implemented yet
             return ENOTRECOVERABLE;
+            break;
+        case VLTL_LANG_TOKEN_KIND_CONSTANT:
+            operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_CONSTANT;
+            evaluates_to->constant = src->tokens[i].token.constant;
+            result_type = &vltl_lang_type_long;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+            break;
+        case VLTL_LANG_TOKEN_KIND_LOCAL:
+            operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_LOCAL;
+            evaluates_to->local = src->tokens[i].token.local;
+            result_type = &vltl_lang_type_long;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+            break;
+        case VLTL_LANG_TOKEN_KIND_GLOBAL:
+            operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_GLOBAL;
+            evaluates_to->global = src->tokens[i].token.global;
+            result_type = &vltl_lang_type_long;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
             break;
         case VLTL_LANG_TOKEN_KIND_LITERAL:
             operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
@@ -659,26 +696,19 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             if(evaluates_to == NULL) {
                 return ENOMEM;
             }
+
             evaluates_to->kind = VLTL_LANG_TOKEN_KIND_LITERAL;
-            evaluates_to->literal.type = &vltl_lang_type_long;
-            memset(&(evaluates_to->literal.fields), 0, VLTL_LANG_LITERAL_FIELDS_CAP * sizeof(void *));
-            sscanf(&(src->text[src->tokens[i].offset]), "%li", (long *) &(evaluates_to->literal.fields[0]));
+            evaluates_to->literal = src->tokens[i].token.literal;
             result_type = &vltl_lang_type_long;
             ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
             break;
         case VLTL_LANG_TOKEN_KIND_OPERATION:
-            switch(src->text[src->tokens[i].offset]) {
-            case '+':
+            switch(src->tokens[i].token.operation->operation_kind) {
+            case VLTL_LANG_OPERATION_KIND_ADD:
                 operation_kind = VLTL_AST_OPERATION_KIND_ADD;
                 break;
-            case '-':
+            case VLTL_LANG_OPERATION_KIND_SUB:
                 operation_kind = VLTL_AST_OPERATION_KIND_SUB;
-                break;
-            case '*':
-                operation_kind = VLTL_AST_OPERATION_KIND_MUL;
-                break;
-            case '/':
-                operation_kind = VLTL_AST_OPERATION_KIND_DIV;
                 break;
             default:
                 return EINVAL;

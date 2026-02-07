@@ -1,6 +1,6 @@
-CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv
+CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5
 CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers
-DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1
+DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
 OPTIMIZE=-O0
 
 INCLUDE=-I ./header/ -I ./src/
@@ -28,7 +28,7 @@ clean:
 vltl: src/core.c libvltl.a
 	${CC} ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
 
-libvltl.a: obj/asm.o obj/ast.o obj/compile.o obj/debug.o obj/isa.o obj/lang.o obj/global.o obj/lexer.o obj/sast.o obj/convert.o obj/ds.o
+libvltl.a: obj/asm.o obj/ast.o obj/compile.o obj/debug.o obj/isa.o obj/lang.o obj/global.o obj/lexer.o obj/sast.o obj/convert.o obj/ds.o obj/siphash.o
 	ar rcs libvltl.a obj/*.o
 
 obj/asm.o: src/asm/*.c header/asm/*.h
@@ -63,6 +63,10 @@ obj/convert.o: src/convert.c header/convert.h
 
 obj/ds.o: src/ds/*.c header/ds/*.h
 	${CC} ${DEBUG} ${CFLAGS} src/ds/core.c -c -o obj/ds.o ${INCLUDE} ${LIBRARIES}
+
+obj/siphash.o: src/siphash.c header/siphash.h
+	${CC} ${DEBUG} ${CFLAGS} src/siphash.c -c -o obj/siphash.o ${INCLUDE} ${LIBRARIES}
+
 
 ## tests and housekeeping
 test: libvltl.a tests/src/*.cc

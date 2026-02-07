@@ -2,6 +2,7 @@
 
 #include <isa.h>
 #include <ds/varena.h>
+#include <ds/nkht.h>
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -95,6 +96,17 @@ typedef struct vltl_global_registers {
 // initialize registers singleton
 __attribute__((constructor)) int vltl_global_registers_init();
 
+// initialize the global allocator
+__attribute__((constructor)) int vltl_global_allocator_init();
+
+// initialize the global tables
+__attribute__((constructor)) int vltl_global_table_constants_init();
+__attribute__((constructor)) int vltl_global_table_globals_init();
+__attribute__((constructor)) int vltl_global_table_locals_init();
+__attribute__((constructor)) int vltl_global_table_types_init();
+__attribute__((constructor)) int vltl_global_table_operations_init();
+__attribute__((constructor)) int vltl_global_table_attributes_init();
+
 // initialize when isa is AMD64
 int vltl_global_registers_init_amd64();
 
@@ -126,6 +138,14 @@ extern struct vltl_global_config vltl_global_config;
 extern struct vltl_global_context vltl_global_context;
 extern struct vltl_global_registers vltl_global_registers;
 extern struct varena *vltl_global_allocator;
+
+extern struct nkht *vltl_global_table_constants;
+extern struct nkht *vltl_global_table_globals;
+extern struct nkht *vltl_global_table_locals;
+extern struct nkht *vltl_global_table_types;
+// both of these would act as constants
+extern struct nkht *vltl_global_table_operations;
+extern struct nkht *vltl_global_table_attributes;
 
 // amd64 structs
 extern struct vltl_global_register vltl_global_register_amd64_rax;
