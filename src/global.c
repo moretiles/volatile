@@ -247,6 +247,10 @@ __attribute__((constructor)) int vltl_global_table_operations_init(void) {
     assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
     lang_operation_ptr = &vltl_lang_operation_global;
     assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+    lang_operation_ptr = &vltl_lang_operation_constant;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+    lang_operation_ptr = &vltl_lang_operation_return;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
 
     return 0;
 }

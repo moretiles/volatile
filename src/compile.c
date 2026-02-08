@@ -19,6 +19,7 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_ADD:
     case VLTL_SAST_OPERATION_KIND_SUB:
+    case VLTL_SAST_OPERATION_KIND_RETURN:
         *dest = operation.destination;
         break;
     default:
@@ -60,6 +61,10 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
             as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_MOV;
             break;
+        case VLTL_SAST_OPERATION_KIND_RETURN:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_RET;
+            break;
         case VLTL_SAST_OPERATION_KIND_EVAL:
             // this is a psuedo-instruction
             return 0;
@@ -83,7 +88,15 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         }
 
         size_t this_operation_argc = vltl_sast_operation_argc(*src);
-        for(size_t i = 0; i < this_operation_argc; i++) {
+        bool this_operation_accepts_operands = true;
+        switch(src->kind) {
+        case VLTL_SAST_OPERATION_KIND_RETURN:
+            this_operation_accepts_operands = false;
+            break;
+        default:
+            break;
+        }
+        for(size_t i = 0; this_operation_accepts_operands && i < this_operation_argc; i++) {
             const Vltl_sast_operation current_operation = *(src->arguments[i]);
             fputs(" ", dest);
 
@@ -167,6 +180,38 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             return EINVAL;
         }
         ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
+        if(ret) {
+            return ret;
+        }
+
+        return 0;
+        break;
+    case VLTL_SAST_OPERATION_KIND_CONSTANT:
+        // this is a psuedo-instruction
+        ;
+
+        Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
+        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_constant == NULL || created_literal == NULL) {
+            return ENOMEM;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
+        };
+        *created_constant = (Vltl_lang_constant) {
+            .name = src->root->destination.as_unknown,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .literal = created_literal
+        };
+
+        if(src->root->destination.as_unknown == NULL) {
+            return EINVAL;
+        }
+        ret = nkht_set(vltl_global_table_constants, src->root->destination.as_unknown, &created_constant);
         if(ret) {
             return ret;
         }
@@ -318,6 +363,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     }
 
     // Write all constants
+    // Actually... don't
+    /*
     {
         Nkht_iterator iterator = { 0 };
         char *iterated_constant_key = NULL;
@@ -344,6 +391,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             );
         }
     }
+    */
 
     // new
     /*

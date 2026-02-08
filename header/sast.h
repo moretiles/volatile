@@ -23,7 +23,9 @@ typedef enum vltl_sast_operation_kind {
     VLTL_SAST_OPERATION_KIND_STORE,
     VLTL_SAST_OPERATION_KIND_ADD,
     VLTL_SAST_OPERATION_KIND_SUB,
-    VLTL_SAST_OPERATION_KIND_GLOBAL
+    VLTL_SAST_OPERATION_KIND_GLOBAL,
+    VLTL_SAST_OPERATION_KIND_CONSTANT,
+    VLTL_SAST_OPERATION_KIND_RETURN
 } Vltl_sast_operation_kind;
 
 typedef struct vltl_sast_operation {

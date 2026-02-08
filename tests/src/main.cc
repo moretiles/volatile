@@ -531,10 +531,152 @@ TEST(fullpass, oneline_addsub) {
     fclose(file);
 }
 
+TEST(fullpass, oneline_return_addsub) {
+    char buf[999];
+    size_t buf_len = 0;
+    const char *mathline = "return 3 + 4 - 2";
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+    FILE *file = nullptr;
+
+    // lexer
+    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
+
+    // ast tree
+    const char *ast_filename = "scratch/ast.dot";
+    file = fopen(ast_filename, "w");
+    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
+    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // sast tree
+    const char *sast_filename = "scratch/sast.dot";
+    file = fopen(sast_filename, "w");
+    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
+    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // compile
+    const char *asm_filename = "scratch/asm.S";
+    file = fopen(asm_filename, "w");
+    ASSERT_NE(nullptr, file);
+    fputs(".intel_syntax\n", file);
+    fputs("\n", file);
+    fputs(".global main\n", file);
+    fputs("\n", file);
+    fputs("main:\n", file);
+    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
+    fflush(file);
+    fclose(file);
+}
+
 TEST(fullpass, oneline_equals_global) {
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "a = 6 + 7";
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+    FILE *file = nullptr;
+
+    // lexer
+    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
+
+    // ast tree
+    const char *ast_filename = "scratch/ast.dot";
+    file = fopen(ast_filename, "w");
+    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
+    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // sast tree
+    const char *sast_filename = "scratch/sast.dot";
+    file = fopen(sast_filename, "w");
+    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
+    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // compile
+    const char *asm_filename = "scratch/asm.S";
+    file = fopen(asm_filename, "w");
+    ASSERT_NE(nullptr, file);
+    fputs(".intel_syntax\n", file);
+    fputs("\n", file);
+    fputs(".global main\n", file);
+    fputs("\n", file);
+    fputs("main:\n", file);
+    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
+    fputs("mov %rax, %r11\n", file);
+    fputs("ret\n", file);
+    fflush(file);
+    fclose(file);
+}
+
+TEST(fullpass, oneline_use_globals) {
+    char buf[999];
+    size_t buf_len = 0;
+    const char *mathline = "a + a + b";
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+    FILE *file = nullptr;
+
+    // lexer
+    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
+
+    // ast tree
+    const char *ast_filename = "scratch/ast.dot";
+    file = fopen(ast_filename, "w");
+    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
+    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // sast tree
+    const char *sast_filename = "scratch/sast.dot";
+    file = fopen(sast_filename, "w");
+    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
+    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // compile
+    const char *asm_filename = "scratch/asm.S";
+    file = fopen(asm_filename, "w");
+    ASSERT_NE(nullptr, file);
+    fputs(".intel_syntax\n", file);
+    fputs("\n", file);
+    fputs(".global main\n", file);
+    fputs("\n", file);
+    fputs("main:\n", file);
+    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
+    fputs("mov %rax, %r11\n", file);
+    fputs("ret\n", file);
+    fflush(file);
+    fclose(file);
+}
+
+TEST(fullpass, oneline_use_constants) {
+    char buf[999];
+    size_t buf_len = 0;
+    const char *mathline = "one + 0";
     Vltl_lexer_line line = { 0 };
     Vltl_ast_tree ast_tree = { 0 };
     Vltl_sast_tree sast_tree = { 0 };
@@ -626,6 +768,53 @@ TEST(fullpass, oneline_define_global) {
     ASSERT_NE(nullptr, check_if_exists);
 }
 
+TEST(fullpass, oneline_define_constant) {
+    char buf[999];
+    size_t buf_len = 0;
+    const char *mathline = "constant running_out_of_variable_names = 3 + 4 + 5";
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+    FILE *file = nullptr;
+
+    // lexer
+    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
+
+    // ast tree
+    const char *ast_filename = "scratch/ast.dot";
+    file = fopen(ast_filename, "w");
+    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
+    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // sast tree
+    const char *sast_filename = "scratch/sast.dot";
+    file = fopen(sast_filename, "w");
+    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
+    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // compile
+    const char *asm_filename = "scratch/asm.S";
+    file = fopen(asm_filename, "w");
+    ASSERT_NE(nullptr, file);
+    fputs(".intel_syntax\n", file);
+    fputs("\n", file);
+    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
+    fflush(file);
+    fclose(file);
+
+    Vltl_lang_constant *check_if_exists = nullptr;
+    ASSERT_FALSE(nkht_get(vltl_global_table_constants, "running_out_of_variable_names", &check_if_exists));
+    ASSERT_NE(nullptr, check_if_exists);
+}
+
 TEST(fullpass, manylines_addsub) {
     char dest_filename[] = "tests/fullpass/manylines_addsub.bin";
     char src_filename[] = "tests/fullpass/manylines_addsub.vltl";
@@ -659,6 +848,12 @@ TEST(fullpass, modify_globals) {
 TEST(fullpass, define_and_use_globals) {
     char dest_filename[] = "tests/fullpass/define_and_use_globals.bin";
     char src_filename[] = "tests/fullpass/define_and_use_globals.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, return_using_globals_and_constants) {
+    char dest_filename[] = "tests/fullpass/return_using_globals_and_constants.bin";
+    char src_filename[] = "tests/fullpass/return_using_globals_and_constants.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 }

@@ -123,7 +123,13 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_EQUALS:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_14;
         break;
+    case VLTL_AST_OPERATION_KIND_RETURN:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
+        break;
     case VLTL_AST_OPERATION_KIND_DEF:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
+        break;
+    case VLTL_AST_OPERATION_KIND_CONSTANT:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
@@ -188,8 +194,14 @@ int vltl_ast_operation_kind_detokenize(
     case VLTL_AST_OPERATION_KIND_GLOBAL:
         src_string = "global";
         break;
+    case VLTL_AST_OPERATION_KIND_CONSTANT:
+        src_string = "constant";
+        break;
     case VLTL_AST_OPERATION_KIND_EVAL:
         src_string = "EVAL";
+        break;
+    case VLTL_AST_OPERATION_KIND_RETURN:
+        src_string = "return";
         break;
     default:
         src_string = "???";
@@ -372,6 +384,8 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_EQUALS:
     case VLTL_AST_OPERATION_KIND_DEF:
     case VLTL_AST_OPERATION_KIND_GLOBAL:
+    case VLTL_AST_OPERATION_KIND_CONSTANT:
+    case VLTL_AST_OPERATION_KIND_RETURN:
         break;
     default:
         return false;
@@ -415,7 +429,13 @@ size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind
     case VLTL_AST_OPERATION_KIND_DEF:
         return 1;
         break;
+    case VLTL_AST_OPERATION_KIND_CONSTANT:
+        return 1;
+        break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
+        return 1;
+        break;
+    case VLTL_AST_OPERATION_KIND_RETURN:
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_EVAL:
@@ -739,6 +759,15 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                     return ret;
                 }
                 break;
+            case VLTL_LANG_OPERATION_KIND_CONSTANT:
+                operation_kind = VLTL_AST_OPERATION_KIND_CONSTANT;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
             case VLTL_LANG_OPERATION_KIND_ADD:
                 operation_kind = VLTL_AST_OPERATION_KIND_ADD;
 
@@ -759,6 +788,15 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 break;
             case VLTL_LANG_OPERATION_KIND_EQUALS:
                 operation_kind = VLTL_AST_OPERATION_KIND_EQUALS;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_RETURN:
+                operation_kind = VLTL_AST_OPERATION_KIND_RETURN;
 
                 result_type = &vltl_lang_type_long;
                 ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);

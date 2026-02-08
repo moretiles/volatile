@@ -1,0 +1,5 @@
+constant the_number_two = 2
+constant the_number_three = 3
+global myglobal_a = one + the_number_two
+global myglobal_b = one - zero + the_number_three
+return the_number_two + the_number_three + myglobal_a + myglobal_b

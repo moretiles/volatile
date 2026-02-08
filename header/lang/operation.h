@@ -15,7 +15,9 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_EQUALSEQUALS,
     VLTL_LANG_OPERATION_KIND_ADD,
     VLTL_LANG_OPERATION_KIND_SUB,
-    VLTL_LANG_OPERATION_KIND_GLOBAL
+    VLTL_LANG_OPERATION_KIND_GLOBAL,
+    VLTL_LANG_OPERATION_KIND_CONSTANT,
+    VLTL_LANG_OPERATION_KIND_RETURN
 } Vltl_lang_operation_kind;
 
 typedef struct vltl_lang_operation {
@@ -30,6 +32,8 @@ extern struct vltl_lang_operation vltl_lang_operation_equals;
 extern struct vltl_lang_operation vltl_lang_operation_add;
 extern struct vltl_lang_operation vltl_lang_operation_sub;
 extern struct vltl_lang_operation vltl_lang_operation_global;
+extern struct vltl_lang_operation vltl_lang_operation_constant;
+extern struct vltl_lang_operation vltl_lang_operation_return;
 
 #ifdef __cplusplus
 }
