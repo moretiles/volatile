@@ -1,8 +1,11 @@
 So you want to add a new operator to the language...
 Just complete these steps...
 
-lexer:
-- Update the logic in vltl_lexer_line_convert to correctly mark the operator you wish to add as an operator.
+lang_operation:
+- Update the vltl_lang_operation_kind enum with a new enum.
+- Define a globally exported lang_operation struct wrapping the newly define vltl_lang_operation_kind enum.
+global:
+- Update the init constructor for the operations table to use the newly created globally exported lang_operation.
 ast:
 - Update the vltl_ast_operation_kind enum with a new enum.
 - Update the switch statement in vltl_ast_operation_precedence_determine.
@@ -11,7 +14,7 @@ ast:
 - Update the switch statement in vltl_ast_operation_kind_argc.
 - Update the switch statement in vltl_ast_tree_convert.
 sast:
-- Update the vltl_sast_operation_kind enum with a new enum.
+- Update the vltl_sast_operation_kind enum with a new enum (if neccesary).
 - Update the switch statement in vltl_sast_operation_kind_valid.
 - Update the switch statement in vltl_sast_operation_kind_argc.
 - Update the switch statement in vltl_sast_operation_kind_detokenize.

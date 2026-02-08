@@ -24,7 +24,24 @@ typedef struct vltl_compile_file {
     // src_filename names the file containing VLTL source code.
     char src_filename[99];
     FILE *src_file;
+
+    // old
     Vltl_compile_line src_lines[99];
+
+    // new
+    /*
+    // queue of vltl_lexer_line structs sorted by the order in which they appear
+    Vqueue unsorted_lines;
+
+    // queue of vltl_lexer_line structs sorted by the order in which they appear, organized by topic
+    Vqueue *import_lines;
+    Vqueue *struct_lines;
+    Vqueue *constant_lines;
+    Vqueue *global_lines;
+
+    // queue of vltl_lexer_function structs sorted by the order in which they appear
+    Vqueue *lexer_functions;
+    */
 
     // tmp_filename names the file assembly instructions are written to, before the gnu assembler is invoked.
     char tmp_filename[99];

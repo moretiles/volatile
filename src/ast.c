@@ -120,7 +120,13 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_SUB:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_4;
         break;
+    case VLTL_AST_OPERATION_KIND_EQUALS:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_14;
+        break;
     case VLTL_AST_OPERATION_KIND_DEF:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
+        break;
+    case VLTL_AST_OPERATION_KIND_GLOBAL:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
         break;
     default:
@@ -173,8 +179,14 @@ int vltl_ast_operation_kind_detokenize(
     case VLTL_AST_OPERATION_KIND_DIV:
         src_string = "/";
         break;
+    case VLTL_AST_OPERATION_KIND_EQUALS:
+        src_string = "=";
+        break;
     case VLTL_AST_OPERATION_KIND_DEF:
         src_string = "def";
+        break;
+    case VLTL_AST_OPERATION_KIND_GLOBAL:
+        src_string = "global";
         break;
     case VLTL_AST_OPERATION_KIND_EVAL:
         src_string = "EVAL";
@@ -355,9 +367,11 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_ADD:
     case VLTL_AST_OPERATION_KIND_MUL:
     case VLTL_AST_OPERATION_KIND_DIV:
-    case VLTL_AST_OPERATION_KIND_DEF:
     case VLTL_AST_OPERATION_KIND_EVAL:
     case VLTL_AST_OPERATION_KIND_SUB:
+    case VLTL_AST_OPERATION_KIND_EQUALS:
+    case VLTL_AST_OPERATION_KIND_DEF:
+    case VLTL_AST_OPERATION_KIND_GLOBAL:
         break;
     default:
         return false;
@@ -401,10 +415,16 @@ size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind
     case VLTL_AST_OPERATION_KIND_DEF:
         return 1;
         break;
+    case VLTL_AST_OPERATION_KIND_GLOBAL:
+        return 1;
+        break;
     case VLTL_AST_OPERATION_KIND_EVAL:
         return 0;
         break;
     case VLTL_AST_OPERATION_KIND_SUB:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_EQUALS:
         return 2;
         break;
     default:
@@ -497,7 +517,7 @@ int vltl_ast_operation_adopt(
                 tree->root = new_parent;
             } else {
                 for(size_t i = 0; i < VLTL_AST_OPERATION_ARGUMENTS_MAX; i++) {
-                    if(adopt_this->parent->arguments[i] == NULL) {
+                    if(adopt_this->parent->arguments[i] == adopt_this) {
                         parent_pointer_to_adopt_this = &(adopt_this->parent->arguments[i]);
                         break;
                     }
@@ -548,7 +568,16 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         return ENOTRECOVERABLE;
     }
 
-    if(pushed->kind <= tree->last->kind) {
+    Vltl_ast_operation_precedence pushed_precedence = {0}, tree_last_precedence = {0};
+    ret = vltl_ast_operation_precedence_determine(&pushed_precedence, *pushed);
+    if(ret) {
+        return ret;
+    }
+    ret = vltl_ast_operation_precedence_determine(&tree_last_precedence, *(tree->last));
+    if(ret) {
+        return ret;
+    }
+    if(pushed_precedence <= tree_last_precedence) {
         ret = vltl_ast_operation_insert(
                   tree, tree->last, pushed,
                   vltl_ast_operation_argc(*(tree->last))
@@ -566,7 +595,7 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             possible_target != NULL && possible_target->parent != NULL;
             possible_target = possible_target->parent
        ) {
-        Vltl_ast_operation_precedence pushed_precedence = {0}, parent_precedence = {0};
+        Vltl_ast_operation_precedence parent_precedence = {0};
         ret = vltl_ast_operation_precedence_determine(&pushed_precedence, *pushed);
         if(ret) {
             return ret;
@@ -578,9 +607,6 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
 
         Vltl_ast_operation_precedence precedence = { 0 };
         Vltl_ast_operation_precedence_order precedence_order = { 0 };
-        const size_t possible_target_argc = vltl_ast_operation_argc(*possible_target);
-        const size_t possible_target_argc_max = vltl_ast_operation_kind_argc(possible_target->kind);
-        const bool current_is_full = possible_target_argc_max >= possible_target_argc;
         bool parent_lower_than_pushed = { 0 };
         ret = vltl_ast_operation_precedence_determine(&precedence, *possible_target);
         if(ret != 0) {
@@ -602,7 +628,7 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             break;
         }
 
-        if(parent_lower_than_pushed && current_is_full) {
+        if(parent_lower_than_pushed) {
             // always need to travel up because cannot insert here
         } else {
             need_to_displace = true;
@@ -704,18 +730,54 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             break;
         case VLTL_LANG_TOKEN_KIND_OPERATION:
             switch(src->tokens[i].token.operation->operation_kind) {
+            case VLTL_LANG_OPERATION_KIND_GLOBAL:
+                operation_kind = VLTL_AST_OPERATION_KIND_GLOBAL;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
             case VLTL_LANG_OPERATION_KIND_ADD:
                 operation_kind = VLTL_AST_OPERATION_KIND_ADD;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
                 break;
             case VLTL_LANG_OPERATION_KIND_SUB:
                 operation_kind = VLTL_AST_OPERATION_KIND_SUB;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_EQUALS:
+                operation_kind = VLTL_AST_OPERATION_KIND_EQUALS;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
                 break;
             default:
                 return EINVAL;
                 break;
             }
+
+            break;
+        case VLTL_LANG_TOKEN_KIND_UNKNOWN:
+            operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
+            evaluates_to = &(src->tokens[i].token);
             result_type = &vltl_lang_type_long;
-            ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
             break;
         default:
             return EINVAL;

@@ -61,7 +61,9 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_MOV;
             break;
         case VLTL_SAST_OPERATION_KIND_EVAL:
-        // this is a psuedo-instruction
+            // this is a psuedo-instruction
+            return 0;
+            break;
         default:
             return EINVAL;
             break;
@@ -133,8 +135,46 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
 }
 
 int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
-    if(dest == NULL || src == NULL) {
+    int ret = 0;
+    if(dest == NULL || src == NULL || src->root == NULL) {
         return EINVAL;
+    }
+
+    switch(src->root->kind) {
+    case VLTL_SAST_OPERATION_KIND_GLOBAL:
+        // this is a psuedo-instruction
+        ;
+
+        Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
+        Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_global == NULL || created_literal == NULL) {
+            return ENOMEM;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
+        };
+        *created_global = (Vltl_lang_global) {
+            .name = src->root->destination.as_unknown,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .literal = created_literal
+        };
+
+        if(src->root->destination.as_unknown == NULL) {
+            return EINVAL;
+        }
+        ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
+        if(ret) {
+            return ret;
+        }
+
+        return 0;
+        break;
+    default:
+        break;
     }
 
     return vltl_compile_convert_recurse(dest, src, src->root);
@@ -144,6 +184,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     int ret = 0;
     FILE *src_file = NULL;
     FILE *assembly_file = NULL;
+    char *assembly_filename = NULL;
+    char *big_buf = NULL;
     FILE *dest_file = NULL;
     const size_t filename_cap = 99;
     if(
@@ -163,7 +205,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     const char *assembly_filename_extension = ".S";
     const size_t dest_filename_len = strlen(dest_filename);
     const size_t assembly_filename_extension_len = strlen(assembly_filename_extension);
-    char *assembly_filename = varena_alloc(&vltl_global_allocator, 2 * filename_cap);
+    assembly_filename = varena_alloc(&vltl_global_allocator, 2 * filename_cap);
     memcpy(&(assembly_filename[0]), dest_filename, dest_filename_len);
     memcpy(&(assembly_filename[dest_filename_len]), assembly_filename_extension, assembly_filename_extension_len);
     assembly_filename[dest_filename_len + assembly_filename_extension_len] = 0;
@@ -179,7 +221,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     }
 
     const size_t big_buf_cap = 9999;
-    char *big_buf = varena_alloc(&vltl_global_allocator, big_buf_cap);
+    big_buf = varena_alloc(&vltl_global_allocator, big_buf_cap);
     if(big_buf == NULL) {
         ret = ENOMEM;
         goto vltl_compile_file_error;
@@ -193,11 +235,13 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     fputs("main:\n", assembly_file);
 
     bool done = false;
-    size_t line_number = 1;
-    char *start_of_line = &(big_buf[0]);
     if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
         done = true;
     }
+
+    // old
+    size_t line_number = 1;
+    char *start_of_line = &(big_buf[0]);
     while(!done) {
         Vltl_lexer_line line = { 0 };
         Vltl_ast_tree ast_tree = { 0 };
@@ -245,7 +289,6 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     fputs("\n", assembly_file);
 
     fputs(".data\n", assembly_file);
-
     // Write all globals
     {
         Nkht_iterator iterator = { 0 };
@@ -257,10 +300,10 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         }
 
         while(
-                nkht_iterate_next(
-                    vltl_global_table_globals, &iterator, (void *) &iterated_global_key, &iterated_global_val
-                    ) != ENODATA
-             ) {
+            nkht_iterate_next(
+                vltl_global_table_globals, &iterator, (void *) &iterated_global_key, &iterated_global_val
+            ) != ENODATA
+        ) {
             if(iterated_global_key == NULL || iterated_global_val == NULL) {
                 return EINVAL;
             }
@@ -285,10 +328,10 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         }
 
         while(
-                nkht_iterate_next(
-                    vltl_global_table_constants, &iterator, (void *) &iterated_constant_key, &iterated_constant_val
-                    ) != ENODATA
-             ) {
+            nkht_iterate_next(
+                vltl_global_table_constants, &iterator, (void *) &iterated_constant_key, &iterated_constant_val
+            ) != ENODATA
+        ) {
             if(iterated_constant_key == NULL || iterated_constant_val == NULL) {
                 return EINVAL;
             }
@@ -301,6 +344,115 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             );
         }
     }
+
+    // new
+    /*
+    done = false;
+    while(!done) {
+        Vltl_lexer_line line = { 0 };
+        Vltl_ast_tree ast_tree = { 0 };
+        Vltl_sast_tree sast_tree = { 0 };
+
+        // lexer
+        ret = vltl_lexer_line_convert(&line, start_of_line);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+
+        if(inside function rn) {
+            switch(first_token of line) {
+            case "var":
+            case "prelude":
+            case "defer":
+                // not yet supported
+                return EINVAL;
+            case "}":
+                // end of function
+                // do something
+                break;
+            default:
+                vqueue_enqueue(current_function_vqueue(current_function), &line);
+                break;
+            }
+        } else {
+            switch(first_token of line) {
+            case "import":
+            case "struct":
+            case "func":
+                // not yet supported
+                return EINVAL;
+                break;
+            case "const":
+                vqueue_enqueue(&constant_lines, &line);
+                break;
+            case "global":
+                vqueue_enqueue(&global_lines, &line);
+                break;
+            default:
+                return EINVAL;
+                break;
+            }
+        }
+
+        {
+            if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
+                done = true;
+            }
+        }
+    }
+
+    for(auto lexer_line : import_lines) {
+    }
+
+    for(auto lexer_line : struct_lines) {
+    }
+
+    for(auto lexer_line : constant_lines) {
+    }
+
+    for(auto lexer_line : global_lines) {
+    }
+
+    for(auto lexer_function : lexer_functions) {
+        for(auto variable_line : variable_lines) {
+        }
+
+        for(auto prelude_line : prelude_lines) {
+        }
+
+        for(auto normal_line : normal_lines) {
+        }
+
+        for(auto defer_line : defer_lines) {
+        }
+    }
+
+    for(auto lexer_line : sorted_lines) {
+        // ast tree
+        ret = vltl_ast_tree_convert(&ast_tree, &line);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+        //vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+        //fputs(buf, file);
+
+        // sast tree
+        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+        //vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+        //fputs(buf, file);
+
+        // compile
+        fprintf(assembly_file, "// line #%lu\n", line_number++);
+        ret = vltl_compile_convert(assembly_file, &sast_tree);
+        fputs("\n", assembly_file);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+    }
+    */
 
     // Once I get more of an idea of how I want to handle symbols/linking then can write code to fork and call gcc
     //const char *gcc_path = "/bin/gcc";

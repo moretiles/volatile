@@ -22,7 +22,8 @@ typedef enum vltl_sast_operation_kind {
     VLTL_SAST_OPERATION_KIND_LOAD,
     VLTL_SAST_OPERATION_KIND_STORE,
     VLTL_SAST_OPERATION_KIND_ADD,
-    VLTL_SAST_OPERATION_KIND_SUB
+    VLTL_SAST_OPERATION_KIND_SUB,
+    VLTL_SAST_OPERATION_KIND_GLOBAL
 } Vltl_sast_operation_kind;
 
 typedef struct vltl_sast_operation {

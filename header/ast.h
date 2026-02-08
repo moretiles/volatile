@@ -61,7 +61,9 @@ typedef enum vltl_ast_operation_kind {
     VLTL_AST_OPERATION_KIND_DIV,
     VLTL_AST_OPERATION_KIND_ADD,
     VLTL_AST_OPERATION_KIND_SUB,
-    VLTL_AST_OPERATION_KIND_DEF
+    VLTL_AST_OPERATION_KIND_EQUALS,
+    VLTL_AST_OPERATION_KIND_DEF,
+    VLTL_AST_OPERATION_KIND_GLOBAL
 } Vltl_ast_operation_kind;
 
 typedef struct vltl_ast_operation {

@@ -58,7 +58,8 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
         offset_into_line_buffer += end_of_current_line;
 
         ret = vltl_lexer_token_chomp(
-                  &start_of_current_line, &end_of_current_line, &presumed_token_kind, &(src[offset_into_line_buffer])
+                  &start_of_current_line, &end_of_current_line,
+                  &presumed_token_kind, &(src[offset_into_line_buffer])
               );
         if(ret == ENODATA) {
             done = true;
@@ -394,16 +395,21 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
         return 0;
     }
 
-    if(token_kind == VLTL_LANG_TOKEN_KIND_OPERATION) {
+    {
         Vltl_lang_operation *operation = NULL;
         int ret = nkht_get(vltl_global_table_operations, src, &operation);
-        if(ret) {
+        if(ret == 0) {
+            dest->token.kind = VLTL_LANG_TOKEN_KIND_OPERATION;
+            dest->token.operation = operation;
+
+            return 0;
+        } else if(token_kind == VLTL_LANG_TOKEN_KIND_OPERATION) {
+            return EINVAL;
+        } else if(ret == ENODATA) {
+            // keep going
+        } else {
             return EINVAL;
         }
-
-        dest->token.kind = VLTL_LANG_TOKEN_KIND_OPERATION;
-        dest->token.operation = operation;
-        return 0;
     }
 
     {

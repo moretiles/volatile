@@ -25,13 +25,55 @@ int vltl_lang_token_stringify(
 
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;
-    case VLTL_LANG_TOKEN_KIND_UNKNOWN:
     case VLTL_LANG_TOKEN_KIND_CONSTANT:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.constant->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
     case VLTL_LANG_TOKEN_KIND_GLOBAL:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.global->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
     case VLTL_LANG_TOKEN_KIND_LOCAL:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.local->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
     case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.attribute->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
     case VLTL_LANG_TOKEN_KIND_OPERATION:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.operation->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
     case VLTL_LANG_TOKEN_KIND_TYPE:
+        dest_len_helper2 = snprintf(dest, dest_cap, "%s", (const char *) src.type->name);
+        if(dest_len_helper2 < 0) {
+            return ENOMEM;
+        }
+
+        *dest_len = ((size_t) dest_len_helper2) + 1;
+        break;
+    case VLTL_LANG_TOKEN_KIND_UNKNOWN:
     default:
         if(dest_cap < 4) {
             return ENOMEM;

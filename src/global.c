@@ -21,6 +21,7 @@ Vltl_global_context vltl_global_context = {
 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
+
 Nkht *vltl_global_table_constants = NULL;
 Nkht *vltl_global_table_globals = NULL;
 Nkht *vltl_global_table_locals = NULL;
@@ -136,7 +137,7 @@ Vltl_global_register vltl_global_register_amd64_r15 = {
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
 };
 
-__attribute__((constructor)) int vltl_global_registers_init() {
+__attribute__((constructor)) int vltl_global_registers_init(void) {
     vltl_global_registers_reset();
 
     switch(vltl_global_config.isa) {
@@ -151,7 +152,7 @@ __attribute__((constructor)) int vltl_global_registers_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_allocator_init() {
+__attribute__((constructor)) int vltl_global_allocator_init(void) {
     vltl_global_allocator = varena_create(5 * 1024 * 1024);
     if(vltl_global_allocator == NULL) {
         exit(ENOMEM);
@@ -165,7 +166,7 @@ __attribute__((constructor)) int vltl_global_allocator_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_constants_init() {
+__attribute__((constructor)) int vltl_global_table_constants_init(void) {
     Vltl_lang_constant *current_constant_ptr = NULL;
 
     vltl_global_table_constants = nkht_create(sizeof(Vltl_lang_constant *));
@@ -180,7 +181,7 @@ __attribute__((constructor)) int vltl_global_table_constants_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_globals_init() {
+__attribute__((constructor)) int vltl_global_table_globals_init(void) {
     Vltl_lang_global *current_global_ptr = NULL;
 
     vltl_global_table_globals = nkht_create(sizeof(Vltl_lang_global *));
@@ -195,7 +196,7 @@ __attribute__((constructor)) int vltl_global_table_globals_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_locals_init() {
+__attribute__((constructor)) int vltl_global_table_locals_init(void) {
     Vltl_lang_local *current_local_ptr = NULL;
 
     vltl_global_table_locals = nkht_create(sizeof(Vltl_lang_local *));
@@ -211,7 +212,7 @@ __attribute__((constructor)) int vltl_global_table_locals_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_types_init() {
+__attribute__((constructor)) int vltl_global_table_types_init(void) {
     Vltl_lang_type *lang_type_ptr = NULL;
 
     vltl_global_table_types = nkht_create(sizeof(Vltl_lang_type *));
@@ -230,7 +231,7 @@ __attribute__((constructor)) int vltl_global_table_types_init() {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_operations_init() {
+__attribute__((constructor)) int vltl_global_table_operations_init(void) {
     Vltl_lang_operation *lang_operation_ptr = NULL;
 
     vltl_global_table_operations = nkht_create(sizeof(Vltl_lang_operation *));
@@ -238,15 +239,19 @@ __attribute__((constructor)) int vltl_global_table_operations_init() {
         exit(ENOMEM);
     }
 
+    lang_operation_ptr = &vltl_lang_operation_equals;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
     lang_operation_ptr = &vltl_lang_operation_add;
     assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
     lang_operation_ptr = &vltl_lang_operation_sub;
+    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+    lang_operation_ptr = &vltl_lang_operation_global;
     assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
 
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_attributes_init() {
+__attribute__((constructor)) int vltl_global_table_attributes_init(void) {
     Vltl_lang_type_attribute *current_attribute_ptr;
     vltl_global_table_attributes = nkht_create(sizeof(Vltl_lang_type_attribute *));
     if(vltl_global_table_attributes == NULL) {
@@ -265,7 +270,7 @@ __attribute__((constructor)) int vltl_global_table_attributes_init() {
     return 0;
 }
 
-int vltl_global_registers_init_amd64() {
+int vltl_global_registers_init_amd64(void) {
     _Static_assert(VLTL_GLOBAL_REGISTERS_AMD64_TOTAL <= VLTL_GLOBAL_REGISTERS_MAX_TOTAL, "The AMD64 architecture supports more general purpose registers than this program is designed to handle!");
     _Static_assert(VLTL_GLOBAL_REGISTERS_AMD64_UNUSED <= VLTL_GLOBAL_REGISTERS_MAX_TOTAL, "The AMD64 architecture supports more general purpose registers than this program is designed to handle!");
     _Static_assert(VLTL_GLOBAL_REGISTERS_AMD64_RESERVED <= VLTL_GLOBAL_REGISTERS_MAX_TOTAL, "The AMD64 architecture supports more general purpose registers than this program is designed to handle!");
@@ -317,13 +322,13 @@ int vltl_global_registers_init_amd64() {
     return 0;
 }
 
-int vltl_global_registers_reset() {
+int vltl_global_registers_reset(void) {
     memset(&vltl_global_registers, 0, sizeof(Vltl_global_registers));
 
     return 0;
 }
 
-int vltl_global_registers_clear() {
+int vltl_global_registers_clear(void) {
     int ret = 0;
     for(size_t i = 0; i < vltl_global_registers.num_total; i++) {
         ret = vltl_global_registers_update(

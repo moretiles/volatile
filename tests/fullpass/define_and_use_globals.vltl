@@ -1,0 +1,3 @@
+global def = 67
+global ghi = 313 - 203 + 111
+ghi + ghi - def

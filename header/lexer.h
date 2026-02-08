@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ds/vqueue.h>
 #include <lang/token.h>
 
 #include <stdbool.h>
@@ -27,6 +28,15 @@ typedef struct vltl_lexer_line {
     Vltl_lexer_token tokens[VLTL_LEXER_LINE_TOKENS_MAX];
     size_t token_count;
 } Vltl_lexer_line;
+
+typedef struct vltl_lexer_function {
+    const char *name;
+
+    Vqueue *variable_lines;
+    Vqueue *prelude_lines;
+    Vqueue *normal_lines;
+    Vqueue *defer_lines;
+} Vltl_lexer_function;
 
 bool vltl_lexer_line_valid(const Vltl_lexer_line line);
 int vltl_lexer_token_init(

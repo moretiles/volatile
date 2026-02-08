@@ -1,5 +1,5 @@
-CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5
-CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers
+CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument
+CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-unused-command-line-argument
 DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
 OPTIMIZE=-O0
 

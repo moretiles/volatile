@@ -1,6 +1,7 @@
 #pragma once
 
 #include <isa.h>
+#include <ds/vqueue.h>
 #include <ds/varena.h>
 #include <ds/nkht.h>
 
@@ -26,7 +27,21 @@ typedef struct vltl_global_config {
     bool pic_enabled;
 } Vltl_global_config;
 
+typedef enum vltl_global_context_within {
+    VLTL_GLOBAL_CONTEXT_WITHIN_UNSET,
+    VLTL_GLOBAL_CONTEXT_WITHIN_INVALID,
+
+    VLTL_GLOBAL_CONTEXT_WITHIN_IMPORT,
+    VLTL_GLOBAL_CONTEXT_WITHIN_CONSTANT,
+    VLTL_GLOBAL_CONTEXT_WITHIN_GLOBAL,
+    VLTL_GLOBAL_CONTEXT_WITHIN_STRUCT,
+    VLTL_GLOBAL_CONTEXT_WITHIN_FUNCTION,
+    VLTL_GLOBAL_CONTEXT_WITHIN_LOCAL
+} Vltl_global_context_within;
+
 typedef struct vltl_global_context {
+    Vltl_global_context_within within_what;
+
     const char *filename;
     const char *function_name;
     size_t line_number;
@@ -94,27 +109,27 @@ typedef struct vltl_global_registers {
 } Vltl_global_registers;
 
 // initialize registers singleton
-__attribute__((constructor)) int vltl_global_registers_init();
+__attribute__((constructor)) int vltl_global_registers_init(void);
 
 // initialize the global allocator
-__attribute__((constructor)) int vltl_global_allocator_init();
+__attribute__((constructor)) int vltl_global_allocator_init(void);
 
 // initialize the global tables
-__attribute__((constructor)) int vltl_global_table_constants_init();
-__attribute__((constructor)) int vltl_global_table_globals_init();
-__attribute__((constructor)) int vltl_global_table_locals_init();
-__attribute__((constructor)) int vltl_global_table_types_init();
-__attribute__((constructor)) int vltl_global_table_operations_init();
-__attribute__((constructor)) int vltl_global_table_attributes_init();
+__attribute__((constructor)) int vltl_global_table_constants_init(void);
+__attribute__((constructor)) int vltl_global_table_globals_init(void);
+__attribute__((constructor)) int vltl_global_table_locals_init(void);
+__attribute__((constructor)) int vltl_global_table_types_init(void);
+__attribute__((constructor)) int vltl_global_table_operations_init(void);
+__attribute__((constructor)) int vltl_global_table_attributes_init(void);
 
 // initialize when isa is AMD64
-int vltl_global_registers_init_amd64();
+int vltl_global_registers_init_amd64(void);
 
 // remove all registers from the global registers singleton
-int vltl_global_registers_reset();
+int vltl_global_registers_reset(void);
 
 // update all registers to have their default value
-int vltl_global_registers_clear();
+int vltl_global_registers_clear(void);
 
 // add new register to the global registers singleton
 int vltl_global_registers_insert(Vltl_global_register *reg);
