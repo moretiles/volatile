@@ -108,7 +108,7 @@ int vltl_sast_operation_adopt(
                 tree->root = new_parent;
             } else {
                 for(size_t i = 0; i < VLTL_AST_OPERATION_ARGUMENTS_MAX; i++) {
-                    if(adopt_this->parent->arguments[i] == NULL) {
+                    if(adopt_this->parent->arguments[i] == adopt_this) {
                         parent_pointer_to_adopt_this = &(adopt_this->parent->arguments[i]);
                         break;
                     }
