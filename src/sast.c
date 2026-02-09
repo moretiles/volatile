@@ -1,3 +1,4 @@
+#include <ds/iestack.h>
 #include <sast.h>
 #include <convert.h>
 
@@ -52,19 +53,36 @@ int vltl_sast_operation_insert(
     Vltl_sast_operation *new_child,
     size_t new_child_index
 ) {
-    if(
-        tree == NULL ||
-        (parent != NULL && !vltl_sast_operation_valid(*parent)) ||
-        new_child == NULL || !vltl_sast_operation_valid(*new_child)
-    ) {
+    int ret = 0;
+    if(tree == NULL || new_child == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree is %p, new_child is %p!",
+            (void *) tree, (void *) new_child
+        );
         return EINVAL;
+    }
+
+    if((parent != NULL && !vltl_sast_operation_valid(*parent))) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Parent exists and is invalid!");
+        return ret;
+    }
+
+    if(!vltl_sast_operation_valid(*new_child)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "new_child exists and is invalid!");
+        return ret;
     }
 
     // rearrange nodes themselves
     {
         if(parent == NULL) {
             if(tree->root != NULL) {
-                return EINVAL;
+                ret = EINVAL;
+                IESTACK_PUSH(&vltl_global_errors, ret, "Parent is NULL in bad location!");
+                return ret;
             }
 
             tree->root = new_child;
@@ -87,12 +105,27 @@ int vltl_sast_operation_adopt(
     Vltl_sast_operation *new_parent,
     Vltl_sast_operation *adopt_this
 ) {
-    if(
-        tree == NULL ||
-        new_parent == NULL || !vltl_sast_operation_valid(*new_parent) ||
-        adopt_this == NULL || !vltl_sast_operation_valid(*adopt_this)
-    ) {
-        return EINVAL;
+    int ret = 0;
+    if(tree == NULL || new_parent == NULL || adopt_this == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree = %p, new_parent = %p, adopt_this = %p!",
+            (void *) tree, (void *) new_parent, (void *) adopt_this
+        );
+        return ret;
+    }
+
+    if(!vltl_sast_operation_valid(*new_parent)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like new_parent is invalid!");
+        return ret;
+    }
+
+    if(!vltl_sast_operation_valid(*adopt_this)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like adopt_this is invalid!");
+        return ret;
     }
 
     // rearrange nodes themselves
@@ -189,24 +222,34 @@ int vltl_sast_operation_insert_operand(
     *created_child_ptr = created_here;
 
     int ret = 0;
-    if(
-        tree == NULL ||
-        created_child_ptr == NULL ||
-        parent == NULL ||
-        !vltl_asm_operand_valid(operand)
-    ) {
-        return EINVAL;
+    if(tree == NULL || created_child_ptr == NULL || parent == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree = %p, created_child_ptr = %p, parent = %p!",
+            (void *) tree, (void *) created_child_ptr, (void *) parent
+        );
+        return ret;
+    }
+
+    if(!vltl_asm_operand_valid(operand)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "operand is invalid!");
+        return ret;
     }
 
     Vltl_asm_operand empty_destination = { 0 };
     ret = vltl_sast_operation_init(created_here, VLTL_SAST_OPERATION_KIND_EVAL, operand, empty_destination);
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure initializing created_here!");
         return ret;
     }
 
     size_t parent_argc = vltl_sast_operation_argc(*parent);
     if(parent_argc >= vltl_sast_operation_kind_argc(parent->kind)) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Cannot insert any additional arguments for parent!");
+        return ret;
     }
     return vltl_sast_operation_insert(tree, parent, created_here, new_child_index);
 }
@@ -523,6 +566,12 @@ int vltl_sast_operation_init(
 int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     int ret = 0;
     if(tree == NULL || operation == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree = %p, operation = %p!",
+            (void *) tree, (void *) operation
+        );
         return EINVAL;
     }
 
@@ -537,13 +586,19 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
         const bool parent_not_null = operation->parent != NULL;
         const bool is_first_argument = parent_not_null && operation->parent->arguments[0] == operation;
         if(!is_first_argument) {
-            return EINVAL;
+            ret = EINVAL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "An operation that is not the first (lchild) is incomplete!");
+            return ret;
         }
 
         Vltl_global_register *reserve_this = NULL;
         ret = vltl_global_registers_clear();
         if(ret != 0) {
-            return ENOTRECOVERABLE;
+            ret = ENOTRECOVERABLE;
+            IESTACK_PUSH(
+                &vltl_global_errors, ret, "Unexpected failure when calling vltl_global_registers_clear!"
+            );
+            return ret;
         }
 
         // build a complete understanding of what registers are available
@@ -570,24 +625,32 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
                 ret = vltl_convert_asm_operand_to_global_register(
                           &reserve_this, current_sibling->destination
                       );
-                if(ret != 0) {
-                    return EINVAL;
+                if(ret) {
+                    IESTACK_PUSH(
+                        &vltl_global_errors, ret, "Unexpected failure when converting operand to register!"
+                    );
+                    return ret;
                 }
                 ret = vltl_global_registers_inuse(reserve_this);
                 if(ret != 0) {
-                    return EINVAL;
+                    IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure marking register as in-use!");
+                    return ret;
                 }
             }
         }
 
         ret = vltl_global_registers_use(&reserve_this);
         if(ret != 0) {
-            return EXFULL;
+            ret = EXFULL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "No free registers available!");
+            return ret;
         }
         Vltl_asm_operand register_operand = { 0 };
         vltl_convert_global_register_to_asm_operand(&register_operand, reserve_this);
         if(ret != 0) {
-            return ENOTRECOVERABLE;
+            ret = ENOTRECOVERABLE;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when converting register to operand!");
+            return ret;
         }
 
         operation->evaluates_to = register_operand;
@@ -598,7 +661,10 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 
         for(size_t i = 0; i < vltl_sast_operation_argc(*operation); i++) {
             ret = vltl_sast_tree_connect_recurse(tree, operation->arguments[i]);
-            if(ret != 0) {
+            if(ret) {
+                IESTACK_PUSH(
+                    &vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect_recurse!"
+                );
                 return ret;
             }
         }
@@ -608,6 +674,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
         const size_t expected_operation_argc = vltl_sast_operation_kind_argc(operation->kind);
         bool all_children_can_be_evaluated_as_immediate_values = false;
         if(initial_argc != full_argc) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Invalid number of argument for operation!");
             return EINVAL;
         }
 
@@ -615,7 +682,9 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
         case VLTL_SAST_OPERATION_KIND_ADD:
             ;
             if(operation_argc != expected_operation_argc || operation_argc != 2) {
-                return ENOTRECOVERABLE;
+                ret = ENOTRECOVERABLE;
+                IESTACK_PUSH(&vltl_global_errors, ret, "Add operation does not have two arguments!");
+                return ret;
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
@@ -647,7 +716,9 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
         case VLTL_SAST_OPERATION_KIND_SUB:
             ;
             if(operation_argc != expected_operation_argc || operation_argc != 2) {
-                return ENOTRECOVERABLE;
+                ret = ENOTRECOVERABLE;
+                IESTACK_PUSH(&vltl_global_errors, ret, "Add operation does not have two arguments!");
+                return ret;
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
@@ -678,6 +749,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             break;
         case VLTL_SAST_OPERATION_KIND_STORE:
             if(operation->lchild == NULL || operation->rchild == NULL) {
+                IESTACK_PUSH(&vltl_global_errors, ret, "One or more arguments of operation are NULL!");
                 return EINVAL;
             }
 
@@ -708,11 +780,16 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 }
 
 int vltl_sast_tree_connect(Vltl_sast_tree *tree) {
+    int ret = 0;
     if(tree == NULL || tree->root == NULL) {
         return EINVAL;
     }
 
-    return vltl_sast_tree_connect_recurse(tree, tree->root);
+    ret = vltl_sast_tree_connect_recurse(tree, tree->root);
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect_recurse!");
+    }
+    return ret;
 }
 
 int vltl_sast_operation_convert_amd64_eval(
@@ -1069,20 +1146,25 @@ int vltl_sast_operation_convert_amd64(
 int vltl_sast_operation_convert(
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
+    int ret = 0;
     if(equivalent == NULL || insert_below_next == NULL || src == NULL || !vltl_ast_operation_valid(*src)) {
         return EINVAL;
     }
 
     switch(vltl_global_config.isa) {
     case VLTL_ISA_AMD64:
-        return vltl_sast_operation_convert_amd64(equivalent, insert_below_next, src);
+        ret = vltl_sast_operation_convert_amd64(equivalent, insert_below_next, src);
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when converting under AMD64!");
+        }
         break;
     default:
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA, unable to convert sast_operation to ast_operation!");
         break;
     }
 
-    return EINVAL;
+    return ret;
 }
 
 static int vltl_sast_tree_convert_helper(
@@ -1094,18 +1176,27 @@ static int vltl_sast_tree_convert_helper(
     Vltl_sast_operation *created = NULL;
     Vltl_sast_operation *insert_below = NULL;
     if(dest == NULL || src == NULL) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return ret;
     }
 
     ret = vstack_pop(ast_operations_to_visit, &current_operation);
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
         return ret;
     } else if(current_operation == NULL) {
         return 0;
     } else if(
         vltl_ast_operation_argc(*current_operation) != vltl_ast_operation_kind_argc(current_operation->kind)
     ) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "The number of arguments src has is invalid!");
+        return ret;
     }
 
     size_t insert_below_argc = 0;
@@ -1113,20 +1204,28 @@ static int vltl_sast_tree_convert_helper(
     if(ret == 0) {
         insert_below_argc = vltl_sast_operation_argc(*insert_below);
         if(insert_below_argc >= vltl_sast_operation_kind_argc(insert_below->kind)) {
-            return EXFULL;
+            ret = EXFULL;
+            IESTACK_PUSH(
+                &vltl_global_errors, ret,
+                "The sast_operation dest cannot support any additonal arguments!"
+            );
+            return ret;
         }
     } else if(ret == ENODATA) {
         insert_below = NULL;
     } else {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
         return ret;
     }
 
     ret = vltl_sast_operation_convert(&created, sast_operations_to_insert_below, current_operation);
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_convert!");
         return ret;
     }
     ret = vltl_sast_operation_insert(dest, insert_below, created, insert_below_argc);
     if(ret != 0) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_insert!");
         return ret;
     }
 
@@ -1139,6 +1238,7 @@ static int vltl_sast_tree_convert_helper(
     for(size_t i = ast_operations_to_visit_helper - 1; true; i--) {
         ret = vstack_push(ast_operations_to_visit, &(current_operation->arguments[i]));
         if(ret != 0) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
             return ret;
         }
 
@@ -1152,20 +1252,30 @@ static int vltl_sast_tree_convert_helper(
 int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     int ret = 0;
     if(dest == NULL || src == NULL) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return ret;
     }
 
     Vstack *ast_operations_to_visit = vstack_create(sizeof(Vltl_ast_operation *), 999);
     Vstack *sast_operations_to_insert_below = vstack_create(sizeof(Vltl_sast_operation *), 999);
     ret = vstack_push(ast_operations_to_visit, &(src->root));
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
         return ret;
     }
     while(vstack_len(ast_operations_to_visit) > 0) {
         ret = vltl_sast_tree_convert_helper(
                   dest, src, ast_operations_to_visit, sast_operations_to_insert_below
               );
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(
+                &vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_convert_helper!"
+            );
             return ret;
         }
     }
@@ -1173,7 +1283,8 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     // optimize?
 
     ret = vltl_sast_tree_connect(dest);
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect!");
         return ret;
     }
 

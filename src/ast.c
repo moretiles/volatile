@@ -1,3 +1,4 @@
+#include <ds/iestack.h>
 #include <global.h>
 #include <ast.h>
 
@@ -271,8 +272,21 @@ static int vltl_ast_tree_detokenize_recurse(
     int ret = 0;
     size_t dest_offset = 0, dest_len_helper = 0, initial_value_of_monotonic_index = *monotonic_index;
     int dest_len_helper2 = 0;
-    if(dest == NULL || dest_cap == 0 || dest_len == NULL) {
-        return EINVAL;
+
+    if(dest == NULL || dest_len == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, dest_len = %p!",
+            (void *) dest, (void *) dest_len
+        );
+        return ret;
+    }
+
+    if(dest_cap == 0) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Whoops dest_cap is 0!");
+        return ret;
     }
 
     dest_len_helper2 = snprintf(
@@ -324,7 +338,8 @@ static int vltl_ast_tree_detokenize_recurse(
                   monotonic_index,
                   initial_value_of_monotonic_index
               );
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Failure detokenizing!");
             return ret;
         }
         dest_offset += dest_len_helper;
@@ -342,7 +357,9 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
 
     dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap, "digraph ast_tree {\n");
     if(dest_len_helper2 < 0) {
-        return ENOTRECOVERABLE;
+        ret = ENOTRECOVERABLE;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling snprintf!");
+        return ret;
     }
     dest_offset += (size_t) dest_len_helper2;
     dest_cap -= (size_t) dest_len_helper2;
@@ -356,7 +373,8 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
               &monotonic_index,
               initial_value_of_monotonic_index
           );
-    if(ret != 0) {
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling vltl_ast_tree_detokenize_recurse!");
         return ret;
     }
     dest_offset += dest_len_helper;
@@ -364,7 +382,9 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
 
     dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap, "}\n");
     if(dest_len_helper2 < 0) {
-        return ENOTRECOVERABLE;
+        ret = ENOTRECOVERABLE;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling snprintf!");
+        return ret;
     }
     dest_offset += (size_t) dest_len_helper2;
     dest_cap -= (size_t) dest_len_helper2;
@@ -479,19 +499,36 @@ int vltl_ast_operation_insert(
     Vltl_ast_operation *new_child,
     size_t new_child_index
 ) {
-    if(
-        tree == NULL ||
-        (parent != NULL && !vltl_ast_operation_valid(*parent)) ||
-        new_child == NULL || !vltl_ast_operation_valid(*new_child)
-    ) {
+    int ret = 0;
+    if(tree == NULL || new_child == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree is %p, new_child is %p!",
+            (void *) tree, (void *) new_child
+        );
         return EINVAL;
+    }
+
+    if((parent != NULL && !vltl_ast_operation_valid(*parent))) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Parent exists and is invalid!");
+        return ret;
+    }
+
+    if(!vltl_ast_operation_valid(*new_child)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "new_child exists and is invalid!");
+        return ret;
     }
 
     // rearrange nodes themselves
     {
         if(parent == NULL) {
             if(tree->root != NULL) {
-                return EINVAL;
+                ret = EINVAL;
+                IESTACK_PUSH(&vltl_global_errors, ret, "Parent is NULL in bad location!");
+                return ret;
             }
 
             tree->root = new_child;
@@ -514,12 +551,27 @@ int vltl_ast_operation_adopt(
     Vltl_ast_operation *new_parent,
     Vltl_ast_operation *adopt_this
 ) {
-    if(
-        tree == NULL ||
-        new_parent == NULL || !vltl_ast_operation_valid(*new_parent) ||
-        adopt_this == NULL || !vltl_ast_operation_valid(*adopt_this)
-    ) {
-        return EINVAL;
+    int ret = 0;
+    if(tree == NULL || new_parent == NULL || adopt_this == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree = %p, new_parent = %p, adopt_this = %p!",
+            (void *) tree, (void *) new_parent, (void *) adopt_this
+        );
+        return ret;
+    }
+
+    if(!vltl_ast_operation_valid(*new_parent)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like new_parent is invalid!");
+        return ret;
+    }
+
+    if(!vltl_ast_operation_valid(*adopt_this)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like adopt_this is invalid!");
+        return ret;
     }
 
     // rearrange nodes themselves
@@ -570,13 +622,26 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
     Vltl_ast_operation *target = NULL, *possible_target;
 
     int ret = 0;
-    if(tree == NULL || pushed == NULL || !vltl_ast_operation_valid(*pushed)) {
-        return EINVAL;
+    if(tree == NULL || pushed == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : tree = %p, pushed = %p!",
+            (void *) tree, (void *) pushed
+        );
+        return ret;
+    }
+
+    if(!vltl_ast_operation_valid(*pushed)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Pushed operation is invalid!");
+        return ret;
     }
 
     if(tree->root == NULL) {
         ret = vltl_ast_operation_insert(tree, NULL, pushed, 0);
         if(ret != 0) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to insert node into tree!");
             return ret;
         }
 
@@ -585,16 +650,19 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
     }
 
     if(tree->root == NULL || tree->last == NULL) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "dest tree has become invalid!");
         return ENOTRECOVERABLE;
     }
 
     Vltl_ast_operation_precedence pushed_precedence = {0}, tree_last_precedence = {0};
     ret = vltl_ast_operation_precedence_determine(&pushed_precedence, *pushed);
     if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for pushed!");
         return ret;
     }
     ret = vltl_ast_operation_precedence_determine(&tree_last_precedence, *(tree->last));
     if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for tree->last!");
         return ret;
     }
     if(pushed_precedence <= tree_last_precedence) {
@@ -602,7 +670,8 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
                   tree, tree->last, pushed,
                   vltl_ast_operation_argc(*(tree->last))
               );
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to insert node into tree!");
             return ret;
         }
 
@@ -618,10 +687,12 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         Vltl_ast_operation_precedence parent_precedence = {0};
         ret = vltl_ast_operation_precedence_determine(&pushed_precedence, *pushed);
         if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for pushed!");
             return ret;
         }
         ret = vltl_ast_operation_precedence_determine(&parent_precedence, *(possible_target->parent));
         if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for possible_target->parent!");
             return ret;
         }
 
@@ -629,11 +700,13 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         Vltl_ast_operation_precedence_order precedence_order = { 0 };
         bool parent_lower_than_pushed = { 0 };
         ret = vltl_ast_operation_precedence_determine(&precedence, *possible_target);
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for possible_target!");
             return ret;
         }
         ret = vltl_ast_operation_precedence_order_determine(&precedence_order, precedence);
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to determine precedence_order!");
             return ret;
         }
         switch(precedence_order) {
@@ -644,7 +717,9 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             parent_lower_than_pushed = pushed_precedence > parent_precedence;
             break;
         default:
-            return ENOTRECOVERABLE;
+            ret = ENOTRECOVERABLE;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected precedence_order... something is very wrong!");
+            return ret;
             break;
         }
 
@@ -662,16 +737,20 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
 
     if(target == NULL) {
         ret = vltl_ast_operation_adopt(tree, pushed, tree->root);
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to adopt pushed!");
             return ret;
         }
     } else if(need_to_displace) {
         ret = vltl_ast_operation_adopt(tree, pushed, target);
-        if(ret != 0) {
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to adopt pushed!");
             return ret;
         }
     } else {
-        return EINVAL;
+        ret = ENOTRECOVERABLE;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure!");
+        return ret;
     }
 
     return 0;
@@ -683,8 +762,20 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
     Vltl_lang_token *evaluates_to = NULL;
     const Vltl_lang_type *result_type = NULL;
     int ret = 0;
-    if(dest == NULL || src == NULL || !vltl_lexer_line_valid(*src)) {
-        return EINVAL;
+    if(dest == NULL || src == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return ret;
+    }
+
+    if(!vltl_lexer_line_valid(*src)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Lexer line is invalid!");
+        return ret;
     }
 
     memset(dest, 0, sizeof(Vltl_ast_tree));
@@ -805,6 +896,7 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 }
                 break;
             default:
+                IESTACK_PUSH(&vltl_global_errors, ret, "Unknown VLTL_LANG_OPERATION_KIND!");
                 return EINVAL;
                 break;
             }
@@ -818,12 +910,14 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
             break;
         default:
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown VLTL_LANG_TOKEN_KIND!");
             return EINVAL;
             break;
         }
 
         ret = vltl_ast_tree_insert(dest, push_this);
         if(ret != 0) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to insert node into tree!");
             return ret;
         }
     }

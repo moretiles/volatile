@@ -1,4 +1,5 @@
 #include <ds/varena.h>
+#include <ds/iestack.h>
 #include <global.h>
 #include <lang/operation.h>
 #include <lang/constant.h>
@@ -21,6 +22,7 @@ Vltl_global_context vltl_global_context = {
 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
+Iestack vltl_global_errors = { 0 };
 
 Nkht *vltl_global_table_constants = NULL;
 Nkht *vltl_global_table_globals = NULL;
@@ -162,6 +164,12 @@ __attribute__((constructor)) int vltl_global_allocator_init(void) {
     if(ret != 0) {
         exit(ret);
     }
+
+    return 0;
+}
+
+__attribute__((constructor)) int vltl_global_errors_init(void) {
+    assert(!iestack_init(&vltl_global_errors));
 
     return 0;
 }

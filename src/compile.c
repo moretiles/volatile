@@ -1,3 +1,4 @@
+#include <ds/iestack.h>
 #include <isa.h>
 #include <compile.h>
 
@@ -32,7 +33,19 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
 
 int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     int ret = 0;
-    if(dest == NULL || src == NULL || !vltl_sast_operation_valid(*src)) {
+    if(dest == NULL || src == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return EINVAL;
+    }
+
+    if(!vltl_sast_operation_valid(*src)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "src is invalid!");
         return EINVAL;
     }
 
@@ -41,7 +54,9 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     {
         // only amd64 supported for now
         if(vltl_global_config.isa != VLTL_ISA_AMD64) {
-            return ENOTRECOVERABLE;
+            ret = ENOTRECOVERABLE;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
+            return ret;
         }
 
         switch(src->kind) {
@@ -70,12 +85,15 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             return 0;
             break;
         default:
-            return EINVAL;
+            ret = EINVAL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to convert this sast_operation_kind!");
+            return ret;
             break;
         }
 
         ret = vltl_asm_instruction_stringify(dest, as_instruction);
         if(ret != 0) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling vltl_asm_instruction_stringify!");
             return ret;
         }
     }
@@ -84,7 +102,9 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     {
         // only amd64 supported for now
         if(vltl_global_config.isa != VLTL_ISA_AMD64) {
-            return ENOTRECOVERABLE;
+            ret = ENOTRECOVERABLE;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so fail!");
+            return ret;
         }
 
         size_t this_operation_argc = vltl_sast_operation_argc(*src);
@@ -103,10 +123,18 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             Vltl_asm_operand as_operand = { 0 };
             ret = vltl_compile_operation_operandify(&as_operand, current_operation);
             if(ret != 0) {
+                IESTACK_PUSH(
+                    &vltl_global_errors, ret,
+                    "Unexpected failure calling vltl_compile_operation_operandify!"
+                );
                 return ret;
             }
             ret = vltl_asm_operand_stringify(dest, as_operand);
             if(ret != 0) {
+                IESTACK_PUSH(
+                    &vltl_global_errors, ret,
+                    "Unexpected failure calling vltl_asm_operand_stringify!"
+                );
                 return ret;
             }
 
@@ -124,7 +152,13 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
 int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_operation *operation) {
     int ret = 0;
     if(dest == NULL || src == NULL || operation == NULL) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p, operation = %p!",
+            (void *) dest, (void *) src, (void *) operation
+        );
+        return ret;
     }
 
     for(size_t i = 0; i < vltl_sast_operation_argc(*operation); i++) {
@@ -134,14 +168,11 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
         } else {
             ret = vltl_compile_convert_recurse(dest, src, ith_operation);
         }
-
-        if(ret != 0) {
-            return ret;
-        }
     }
 
     ret = vltl_compile_operation_convert(dest, operation);
     if(ret != 0) {
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_compile_operation_convert!");
         return ret;
     }
     return 0;
@@ -150,7 +181,13 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
 int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     int ret = 0;
     if(dest == NULL || src == NULL || src->root == NULL) {
-        return EINVAL;
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p, src->root = %p!",
+            (void *) dest, (void *) src, (void *) src->root
+        );
+        return ret;
     }
 
     switch(src->root->kind) {
@@ -161,7 +198,9 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
         Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
         if(created_global == NULL || created_literal == NULL) {
-            return ENOMEM;
+            ret = ENOMEM;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
         }
         *created_literal = (Vltl_lang_literal) {
             .name = NULL,
@@ -177,10 +216,13 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         };
 
         if(src->root->destination.as_unknown == NULL) {
-            return EINVAL;
+            ret = EINVAL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+            return ret;
         }
         ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
         if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
 
@@ -193,7 +235,9 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
         created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
         if(created_constant == NULL || created_literal == NULL) {
-            return ENOMEM;
+            ret = ENOMEM;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
         }
         *created_literal = (Vltl_lang_literal) {
             .name = NULL,
@@ -209,10 +253,13 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         };
 
         if(src->root->destination.as_unknown == NULL) {
-            return EINVAL;
+            ret = EINVAL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+            return ret;
         }
         ret = nkht_set(vltl_global_table_constants, src->root->destination.as_unknown, &created_constant);
         if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
 
@@ -231,7 +278,9 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     FILE *assembly_file = NULL;
     char *assembly_filename = NULL;
     char *big_buf = NULL;
+    char *debug_buf = NULL;
     FILE *dest_file = NULL;
+    FILE *debug_file = NULL;
     const size_t filename_cap = 99;
     if(
         dest_filename == NULL || strlen(dest_filename) > filename_cap ||
@@ -256,6 +305,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     assembly_filename[dest_filename_len + assembly_filename_extension_len] = 0;
     assembly_file = fopen(assembly_filename, "w");
     if(!assembly_file) {
+        ret = ENOMEM;
         goto vltl_compile_file_error;
     }
 
@@ -266,6 +316,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     }
 
     const size_t big_buf_cap = 9999;
+    const size_t debug_buf_cap = 9999;
+    size_t debug_buf_len = 0;
     big_buf = varena_alloc(&vltl_global_allocator, big_buf_cap);
     if(big_buf == NULL) {
         ret = ENOMEM;
@@ -301,18 +353,26 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         // ast tree
         ret = vltl_ast_tree_convert(&ast_tree, &line);
         if(ret) {
+            debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
+            vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
+            debug_file = fopen("scratch/ast_debug.dot", "w");
+            assert(debug_file != NULL);
+            fputs(debug_buf, debug_file);
+            fclose(debug_file);
             goto vltl_compile_file_error;
         }
-        //vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
-        //fputs(buf, file);
 
         // sast tree
         ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
         if(ret) {
+            debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
+            vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
+            debug_file = fopen("scratch/sast_debug.dot", "w");
+            assert(debug_file != NULL);
+            fputs(debug_buf, debug_file);
+            fclose(debug_file);
             goto vltl_compile_file_error;
         }
-        //vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
-        //fputs(buf, file);
 
         // compile
         fprintf(assembly_file, "// line #%lu\n", line_number++);
@@ -341,7 +401,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         Vltl_lang_global *iterated_global_val = NULL;
         ret = nkht_iterate_start(vltl_global_table_globals, &iterator);
         if(ret) {
-            return ret;
+            goto vltl_compile_file_error;
         }
 
         while(
@@ -350,7 +410,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             ) != ENODATA
         ) {
             if(iterated_global_key == NULL || iterated_global_val == NULL) {
-                return EINVAL;
+                ret = ENOTRECOVERABLE;
+                goto vltl_compile_file_error;
             }
 
             fprintf(
@@ -371,7 +432,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         Vltl_lang_constant *iterated_constant_val = NULL;
         ret = nkht_iterate_start(vltl_global_table_constants, &iterator);
         if(ret) {
-            return ret;
+            goto vltl_compile_file_error;
         }
 
         while(
@@ -380,7 +441,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             ) != ENODATA
         ) {
             if(iterated_constant_key == NULL || iterated_constant_val == NULL) {
-                return EINVAL;
+                ret = ENOTRECOVERABLE;
+                goto vltl_compile_file_error;
             }
 
             fprintf(
@@ -413,7 +475,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             case "prelude":
             case "defer":
                 // not yet supported
-                return EINVAL;
+                ret = EINVAL;
+                goto vltl_compile_file_error;
             case "}":
                 // end of function
                 // do something
@@ -428,7 +491,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             case "struct":
             case "func":
                 // not yet supported
-                return EINVAL;
+                ret = EINVAL;
+                goto vltl_compile_file_error;
                 break;
             case "const":
                 vqueue_enqueue(&constant_lines, &line);
@@ -437,7 +501,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
                 vqueue_enqueue(&global_lines, &line);
                 break;
             default:
-                return EINVAL;
+                ret = EINVAL;
+                goto vltl_compile_file_error;
                 break;
             }
         }
@@ -516,6 +581,9 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     //}
 
 vltl_compile_file_error:
+    if(ret) {
+        iestack_dump(&vltl_global_errors, stdout);
+    }
     if(src_file) {
         fflush(src_file);
         fclose(src_file);

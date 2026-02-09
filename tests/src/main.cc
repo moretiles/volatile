@@ -8,10 +8,87 @@
 #include <isa.h>
 #include <lang/type.h>
 #include <sast.h>
+#include <ds/iestack.h>
 
 #include <gtest/gtest.h>
 
 #include <memory>
+
+namespace {
+int add_2(int *dest, int *src1, int *src2) {
+    if(dest == NULL || src1 == NULL || src2 == NULL) {
+        IESTACK_PUSHF(
+            &vltl_global_errors,
+            EINVAL, "provided pointers are NULL : dest = %p, src1 = %p, src2 = %p",
+            (void *) dest, (void *) src1, (void *) src2
+        );
+
+        iestack_dump(&vltl_global_errors, stdout);
+        return EINVAL;
+    }
+
+    if(*src1 < 0) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "argument a is negative!");
+
+        iestack_dump(&vltl_global_errors, stdout);
+        return EINVAL;
+    }
+
+    if(*src2 < 0) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "argument b is negative!");
+
+        iestack_dump(&vltl_global_errors, stdout);
+        return EINVAL;
+    }
+
+    *dest = *src1 + *src2;
+    return 0;
+}
+
+int baz(void) {
+    IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "bad from baz");
+
+    return ENOTRECOVERABLE;
+}
+
+int bar(void) {
+    int ret = baz();
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "bad from bar");
+
+        return ret;
+    }
+
+    return 0;
+}
+
+int foo(void) {
+    int ret = bar();
+    if(ret) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "bad from foo");
+
+        return ret;
+    }
+
+    return 0;
+}
+
+TEST(ds, ierror_simple) {
+    int a = 2;
+    int b = 3;
+    int c = 0;
+
+    ASSERT_FALSE(add_2(&c, &a, &b));
+
+    b = -3;
+    ASSERT_TRUE(add_2(&c, &a, &b));
+
+    ASSERT_TRUE(add_2(&c, NULL, &b));
+
+    ASSERT_TRUE(foo());
+    iestack_dump(&vltl_global_errors, stdout);
+}
+}
 
 namespace {
 TEST(vltl_sast, operation_insert_and_compile) {

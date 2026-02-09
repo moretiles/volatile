@@ -114,6 +114,9 @@ __attribute__((constructor)) int vltl_global_registers_init(void);
 // initialize the global allocator
 __attribute__((constructor)) int vltl_global_allocator_init(void);
 
+// initialize the global errors stack
+__attribute__((constructor)) int vltl_global_errors_init(void);
+
 // initialize the global tables
 __attribute__((constructor)) int vltl_global_table_constants_init(void);
 __attribute__((constructor)) int vltl_global_table_globals_init(void);
@@ -153,6 +156,7 @@ extern struct vltl_global_config vltl_global_config;
 extern struct vltl_global_context vltl_global_context;
 extern struct vltl_global_registers vltl_global_registers;
 extern struct varena *vltl_global_allocator;
+extern struct iestack vltl_global_errors;
 
 extern struct nkht *vltl_global_table_constants;
 extern struct nkht *vltl_global_table_globals;
