@@ -30,6 +30,30 @@ Vltl_lang_operation vltl_lang_operation_constant = {
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
+Vltl_lang_operation vltl_lang_operation_local = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_LOCAL,
+    .name = "local",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_function = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_FUNCTION,
+    .name = "function",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_body_open = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_BODY_OPEN,
+    .name = "{",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_body_close = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_BODY_CLOSE,
+    .name = "}",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
 Vltl_lang_operation vltl_lang_operation_return = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_RETURN,
     .name = "return",

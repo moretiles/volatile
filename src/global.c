@@ -1,6 +1,8 @@
 #include <ds/varena.h>
 #include <ds/iestack.h>
 #include <global.h>
+#include <lexer.h>
+#include <lang/function.h>
 #include <lang/operation.h>
 #include <lang/constant.h>
 #include <lang/global.h>
@@ -11,15 +13,8 @@
 #include <errno.h>
 #include <stdlib.h>
 
-Vltl_global_config vltl_global_config = {
-    .isa = VLTL_ISA_AMD64,
-    .pic_enabled = true
-};
-Vltl_global_context vltl_global_context = {
-    .filename = "test.vltl",
-    .function_name = "main",
-    .line_number = 1
-};
+Vltl_global_config vltl_global_config = { 0 };
+Vltl_global_context vltl_global_context = { 0 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
 Iestack vltl_global_errors = { 0 };
@@ -30,6 +25,7 @@ Nkht *vltl_global_table_locals = NULL;
 Nkht *vltl_global_table_types = NULL;
 Nkht *vltl_global_table_operations = NULL;
 Nkht *vltl_global_table_attributes = NULL;
+Nkht *vltl_global_table_functions = NULL;
 
 Vltl_global_register vltl_global_register_amd64_rax = {
     .isa = VLTL_ISA_AMD64,
@@ -139,7 +135,37 @@ Vltl_global_register vltl_global_register_amd64_r15 = {
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
 };
 
-__attribute__((constructor)) int vltl_global_registers_init(void) {
+__attribute__((constructor)) int vltl_global_init(void) {
+    vltl_global_config_init();
+    vltl_global_context_init();
+    vltl_global_registers_init();
+    vltl_global_allocator_init();
+    vltl_global_errors_init();
+    vltl_global_table_init();
+
+    return 0;
+}
+
+int vltl_global_config_init(void) {
+    vltl_global_config = (Vltl_global_config) {
+        .isa = VLTL_ISA_AMD64,
+        .pic_enabled = true
+    };
+
+    return 0;
+}
+
+int vltl_global_context_init(void) {
+    vltl_global_context = (Vltl_global_context) {
+        .filename = "test.vltl",
+        .function = NULL,
+        .line_number = 1
+    };
+
+    return 0;
+}
+
+int vltl_global_registers_init(void) {
     vltl_global_registers_reset();
 
     switch(vltl_global_config.isa) {
@@ -154,7 +180,12 @@ __attribute__((constructor)) int vltl_global_registers_init(void) {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_allocator_init(void) {
+int vltl_global_allocator_init(void) {
+    if(vltl_global_allocator != NULL) {
+        varena_destroy(&vltl_global_allocator);
+        vltl_global_allocator = NULL;
+    }
+
     vltl_global_allocator = varena_create(5 * 1024 * 1024);
     if(vltl_global_allocator == NULL) {
         exit(ENOMEM);
@@ -168,14 +199,35 @@ __attribute__((constructor)) int vltl_global_allocator_init(void) {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_errors_init(void) {
+int vltl_global_errors_init(void) {
+    if(vltl_global_errors.error_stack != NULL) {
+        iestack_deinit(&vltl_global_errors);
+    }
+
     assert(!iestack_init(&vltl_global_errors));
 
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_constants_init(void) {
+int vltl_global_table_init(void) {
+    vltl_global_table_constants_init();
+    vltl_global_table_globals_init();
+    vltl_global_table_locals_init();
+    vltl_global_table_types_init();
+    vltl_global_table_operations_init();
+    vltl_global_table_attributes_init();
+    vltl_global_table_functions_init();
+
+    return 0;
+}
+
+int vltl_global_table_constants_init(void) {
     Vltl_lang_constant *current_constant_ptr = NULL;
+
+    if(vltl_global_table_constants != NULL) {
+        nkht_destroy(vltl_global_table_constants);
+        vltl_global_table_constants = NULL;
+    }
 
     vltl_global_table_constants = nkht_create(sizeof(Vltl_lang_constant *));
     if(vltl_global_table_constants == NULL) {
@@ -189,8 +241,13 @@ __attribute__((constructor)) int vltl_global_table_constants_init(void) {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_globals_init(void) {
+int vltl_global_table_globals_init(void) {
     Vltl_lang_global *current_global_ptr = NULL;
+
+    if(vltl_global_table_globals != NULL) {
+        nkht_destroy(vltl_global_table_globals);
+        vltl_global_table_globals = NULL;
+    }
 
     vltl_global_table_globals = nkht_create(sizeof(Vltl_lang_global *));
     if(vltl_global_table_globals == NULL) {
@@ -204,24 +261,27 @@ __attribute__((constructor)) int vltl_global_table_globals_init(void) {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_locals_init(void) {
-    Vltl_lang_local *current_local_ptr = NULL;
+int vltl_global_table_locals_init(void) {
+    if(vltl_global_table_locals != NULL) {
+        nkht_destroy(vltl_global_table_locals);
+        vltl_global_table_locals = NULL;
+    }
 
     vltl_global_table_locals = nkht_create(sizeof(Vltl_lang_local *));
     if(vltl_global_table_locals == NULL) {
         exit(ENOMEM);
     }
 
-    current_local_ptr = &vltl_lang_local_c;
-    assert(0 == nkht_set(vltl_global_table_locals, current_local_ptr->name, &current_local_ptr));
-    current_local_ptr = &vltl_lang_local_d;
-    assert(0 == nkht_set(vltl_global_table_locals, current_local_ptr->name, &current_local_ptr));
-
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_types_init(void) {
+int vltl_global_table_types_init(void) {
     Vltl_lang_type *lang_type_ptr = NULL;
+
+    if(vltl_global_table_types != NULL) {
+        nkht_destroy(vltl_global_table_types);
+        vltl_global_table_types = NULL;
+    }
 
     vltl_global_table_types = nkht_create(sizeof(Vltl_lang_type *));
     if(vltl_global_table_types == NULL) {
@@ -239,32 +299,43 @@ __attribute__((constructor)) int vltl_global_table_types_init(void) {
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_operations_init(void) {
-    Vltl_lang_operation *lang_operation_ptr = NULL;
+void vltl_global_table_operations_init_helper(const char *key, Vltl_lang_operation *operation) {
+    assert(0 == nkht_set(vltl_global_table_operations, key, &operation));
+}
+
+int vltl_global_table_operations_init(void) {
+    if(vltl_global_table_operations != NULL) {
+        nkht_destroy(vltl_global_table_operations);
+        vltl_global_table_operations = NULL;
+    }
 
     vltl_global_table_operations = nkht_create(sizeof(Vltl_lang_operation *));
     if(vltl_global_table_operations == NULL) {
         exit(ENOMEM);
     }
 
-    lang_operation_ptr = &vltl_lang_operation_equals;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
-    lang_operation_ptr = &vltl_lang_operation_add;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
-    lang_operation_ptr = &vltl_lang_operation_sub;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
-    lang_operation_ptr = &vltl_lang_operation_global;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
-    lang_operation_ptr = &vltl_lang_operation_constant;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
-    lang_operation_ptr = &vltl_lang_operation_return;
-    assert(0 == nkht_set(vltl_global_table_operations, lang_operation_ptr->name, &lang_operation_ptr));
+    vltl_global_table_operations_init_helper(vltl_lang_operation_equals.name, &vltl_lang_operation_equals);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_add.name, &vltl_lang_operation_add);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_sub.name, &vltl_lang_operation_sub);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_global.name, &vltl_lang_operation_global);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_constant.name, &vltl_lang_operation_constant);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_local.name, &vltl_lang_operation_local);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_function.name, &vltl_lang_operation_function);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_body_open.name, &vltl_lang_operation_body_open);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_body_close.name, &vltl_lang_operation_body_close);
+    vltl_global_table_operations_init_helper(vltl_lang_operation_return.name, &vltl_lang_operation_return);
 
     return 0;
 }
 
-__attribute__((constructor)) int vltl_global_table_attributes_init(void) {
+int vltl_global_table_attributes_init(void) {
     Vltl_lang_type_attribute *current_attribute_ptr;
+
+    if(vltl_global_table_attributes != NULL) {
+        nkht_destroy(vltl_global_table_attributes);
+        vltl_global_table_attributes = NULL;
+    }
+
     vltl_global_table_attributes = nkht_create(sizeof(Vltl_lang_type_attribute *));
     if(vltl_global_table_attributes == NULL) {
         exit(ENOMEM);
@@ -278,6 +349,20 @@ __attribute__((constructor)) int vltl_global_table_attributes_init(void) {
     assert(0 == nkht_set(
                vltl_global_table_attributes, current_attribute_ptr->name, &current_attribute_ptr)
           );
+
+    return 0;
+}
+
+int vltl_global_table_functions_init(void) {
+    if(vltl_global_table_functions != NULL) {
+        nkht_destroy(vltl_global_table_functions);
+        vltl_global_table_functions = NULL;
+    }
+
+    vltl_global_table_functions = nkht_create(sizeof(Vltl_lang_function *));
+    if(vltl_global_table_functions == NULL) {
+        exit(ENOMEM);
+    }
 
     return 0;
 }

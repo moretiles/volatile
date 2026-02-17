@@ -1,3 +1,5 @@
-3 - 1 + zero
-zero + zero + zero + one
-one + zero - 0
+function main {
+    3 - 1 + zero
+    zero + zero + zero + one
+    return one + zero - 0
+}

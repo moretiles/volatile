@@ -39,7 +39,7 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
     int ret = 0;
     if(dest == NULL || src == NULL) {
         IESTACK_PUSHF(
-            &vltl_global_errors, EINVAL, 
+            &vltl_global_errors, EINVAL,
             "Argument pointer is null : dest = %p, src = %p",
             (void *) dest, (void *) src
         );
@@ -97,7 +97,7 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
         dest->tokens[current_token_index].line = memory_for_this_token;
 
         ret = vltl_lexer_token_tokenize(
-                  &(dest->tokens[current_token_index++]), memory_for_this_token, presumed_token_kind
+                  &(dest->tokens[current_token_index++]), memory_for_this_token, end_of_current_line - start_of_current_line, presumed_token_kind
               );
         if(ret) {
             IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure!");
@@ -402,14 +402,44 @@ int vltl_lexer_token_chomp(
     return 0;
 }
 
-int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vltl_lang_token_kind token_kind) {
+int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t src_len, const Vltl_lang_token_kind token_kind) {
+    const size_t tmp_cap = 999;
+    char tmp[tmp_cap];
+
+    if(dest == NULL || src == NULL) {
+        IESTACK_PUSHF(
+            &vltl_global_errors, EINVAL,
+            "Arguments are invalid : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return EINVAL;
+    }
+
+    if(src_len == 0) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "Length of src string is 0!");
+        return EINVAL;
+    }
+
+    if(!vltl_lang_token_kind_valid(token_kind)) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "Invalid token kind!");
+        return EINVAL;
+    }
+
+    if((src_len - 1) > tmp_cap) {
+        IESTACK_PUSH(&vltl_global_errors, EINVAL, "The src string is far too long!");
+        return EINVAL;
+    }
+
+    memcpy(tmp, src, src_len);
+    tmp[src_len] = 0;
+
     if(token_kind == VLTL_LANG_TOKEN_KIND_LITERAL) {
         void *value = NULL;
-        sscanf(src, "%li", (long *) &(value));
+        sscanf(tmp, "%li", (long *) &(value));
 
         dest->token.kind = VLTL_LANG_TOKEN_KIND_LITERAL;
         dest->token.literal = (Vltl_lang_literal) {
-            .name = src,
+            .name = tmp,
             .type = &vltl_lang_type_long,
             .attributes = { 0 },
             .fields = { value }
@@ -420,7 +450,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
 
     {
         Vltl_lang_operation *operation = NULL;
-        int ret = nkht_get(vltl_global_table_operations, src, &operation);
+        int ret = nkht_get(vltl_global_table_operations, tmp, &operation);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_OPERATION;
             dest->token.operation = operation;
@@ -430,7 +460,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
             IESTACK_PUSHF(
                 &vltl_global_errors, EINVAL,
                 "Unable to find operation named %s when doing lookup!",
-                src
+                tmp
             );
             return EINVAL;
         } else if(ret == ENODATA) {
@@ -439,7 +469,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
             IESTACK_PUSHF(
                 &vltl_global_errors, EINVAL,
                 "Unable to find operation named %s when doing lookup!",
-                src
+                tmp
             );
             return EINVAL;
         }
@@ -447,7 +477,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
 
     {
         Vltl_lang_type_attribute *attribute = NULL;
-        int ret = nkht_get(vltl_global_table_attributes, src, &attribute);
+        int ret = nkht_get(vltl_global_table_attributes, tmp, &attribute);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_ATTRIBUTE;
             dest->token.attribute = attribute;
@@ -463,7 +493,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
 
     {
         Vltl_lang_type *type = NULL;
-        int ret = nkht_get(vltl_global_table_types, src, &type);
+        int ret = nkht_get(vltl_global_table_types, tmp, &type);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_TYPE;
             dest->token.type = type;
@@ -478,8 +508,9 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
     }
 
     {
+        /*
         Vltl_lang_local *local = NULL;
-        int ret = nkht_get(vltl_global_table_locals, src, &local);
+        int ret = nkht_get(vltl_global_table_locals, tmp, &local);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_LOCAL;
             dest->token.local = local;
@@ -491,11 +522,28 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
             IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
+        */
+
+        if(vltl_global_context.function != NULL) {
+            Vltl_lang_local *local = NULL;
+            int ret = vltl_lang_function_local_get(&local, vltl_global_context.function, tmp);
+            if(ret == 0) {
+                dest->token.kind = VLTL_LANG_TOKEN_KIND_LOCAL;
+                dest->token.local = local;
+
+                return 0;
+            } else if(ret == ENODATA) {
+                // keep going
+            } else {
+                IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+                return ENOTRECOVERABLE;
+            }
+        }
     }
 
     {
         Vltl_lang_global *global = NULL;
-        int ret = nkht_get(vltl_global_table_globals, src, &global);
+        int ret = nkht_get(vltl_global_table_globals, tmp, &global);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_GLOBAL;
             dest->token.global = global;
@@ -511,7 +559,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vlt
 
     {
         Vltl_lang_constant *constant = NULL;
-        int ret = nkht_get(vltl_global_table_constants, src, &constant);
+        int ret = nkht_get(vltl_global_table_constants, tmp, &constant);
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_CONSTANT;
             dest->token.constant = constant;

@@ -1,3 +1,6 @@
-20 - c + 3
-5 + 5 + d
-c + d + c
+function main {
+    local c = 1
+    local d = 2
+
+    return c + d + c
+}

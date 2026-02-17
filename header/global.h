@@ -4,6 +4,7 @@
 #include <ds/vqueue.h>
 #include <ds/varena.h>
 #include <ds/nkht.h>
+#include <lang/function.h>
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -43,7 +44,7 @@ typedef struct vltl_global_context {
     Vltl_global_context_within within_what;
 
     const char *filename;
-    const char *function_name;
+    Vltl_lang_function *function;
     size_t line_number;
 } Vltl_global_context;
 
@@ -108,22 +109,32 @@ typedef struct vltl_global_registers {
     size_t num_inuse;
 } Vltl_global_registers;
 
+__attribute__((constructor)) int vltl_global_init(void);
+
+// initialize config singleton
+int vltl_global_config_init(void);
+
+// initialize context singleton
+int vltl_global_context_init(void);
+
 // initialize registers singleton
-__attribute__((constructor)) int vltl_global_registers_init(void);
+int vltl_global_registers_init(void);
 
 // initialize the global allocator
-__attribute__((constructor)) int vltl_global_allocator_init(void);
+int vltl_global_allocator_init(void);
 
 // initialize the global errors stack
-__attribute__((constructor)) int vltl_global_errors_init(void);
+int vltl_global_errors_init(void);
 
 // initialize the global tables
-__attribute__((constructor)) int vltl_global_table_constants_init(void);
-__attribute__((constructor)) int vltl_global_table_globals_init(void);
-__attribute__((constructor)) int vltl_global_table_locals_init(void);
-__attribute__((constructor)) int vltl_global_table_types_init(void);
-__attribute__((constructor)) int vltl_global_table_operations_init(void);
-__attribute__((constructor)) int vltl_global_table_attributes_init(void);
+int vltl_global_table_init(void);
+int vltl_global_table_constants_init(void);
+int vltl_global_table_globals_init(void);
+int vltl_global_table_locals_init(void);
+int vltl_global_table_types_init(void);
+int vltl_global_table_operations_init(void);
+int vltl_global_table_attributes_init(void);
+int vltl_global_table_functions_init(void);
 
 // initialize when isa is AMD64
 int vltl_global_registers_init_amd64(void);
@@ -162,6 +173,7 @@ extern struct nkht *vltl_global_table_constants;
 extern struct nkht *vltl_global_table_globals;
 extern struct nkht *vltl_global_table_locals;
 extern struct nkht *vltl_global_table_types;
+extern struct nkht *vltl_global_table_functions;
 // both of these would act as constants
 extern struct nkht *vltl_global_table_operations;
 extern struct nkht *vltl_global_table_attributes;

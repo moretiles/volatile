@@ -68,6 +68,8 @@ int vltl_ast_operation_precedence_order_determine(
     // https://en.cppreference.com/w/c/language/operator_precedence.html
     switch(src) {
     case VLTL_AST_OPERATION_PRECEDENCE_0:
+        *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_LEFT_TO_RIGHT;
+        break;
     case VLTL_AST_OPERATION_PRECEDENCE_1:
         *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_LEFT_TO_RIGHT;
         break;
@@ -93,6 +95,13 @@ int vltl_ast_operation_precedence_order_determine(
     case VLTL_AST_OPERATION_PRECEDENCE_15:
         *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_LEFT_TO_RIGHT;
         break;
+    case VLTL_AST_OPERATION_PRECEDENCE_16:
+    case VLTL_AST_OPERATION_PRECEDENCE_17:
+    case VLTL_AST_OPERATION_PRECEDENCE_18:
+    case VLTL_AST_OPERATION_PRECEDENCE_19:
+    case VLTL_AST_OPERATION_PRECEDENCE_20:
+        *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_RIGHT_TO_LEFT;
+        break;
     default:
         return EINVAL;
     }
@@ -108,6 +117,8 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
 
     switch(src.kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
+    case VLTL_AST_OPERATION_KIND_BODY_OPEN:
+    case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_0;
         break;
     case VLTL_AST_OPERATION_KIND_ENCLOSE:
@@ -125,16 +136,11 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_14;
         break;
     case VLTL_AST_OPERATION_KIND_RETURN:
-        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
-        break;
-    case VLTL_AST_OPERATION_KIND_DEF:
-        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
-        break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
-        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
-        break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
-        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_16;
+    case VLTL_AST_OPERATION_KIND_LOCAL:
+    case VLTL_AST_OPERATION_KIND_FUNCTION:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_19;
         break;
     default:
         return EINVAL;
@@ -189,8 +195,8 @@ int vltl_ast_operation_kind_detokenize(
     case VLTL_AST_OPERATION_KIND_EQUALS:
         src_string = "=";
         break;
-    case VLTL_AST_OPERATION_KIND_DEF:
-        src_string = "def";
+    case VLTL_AST_OPERATION_KIND_LOCAL:
+        src_string = "local";
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
         src_string = "global";
@@ -203,6 +209,15 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_RETURN:
         src_string = "return";
+        break;
+    case VLTL_AST_OPERATION_KIND_FUNCTION:
+        src_string = "function";
+        break;
+    case VLTL_AST_OPERATION_KIND_BODY_OPEN:
+        src_string = "{";
+        break;
+    case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
+        src_string = "}";
         break;
     default:
         src_string = "???";
@@ -402,10 +417,13 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_EVAL:
     case VLTL_AST_OPERATION_KIND_SUB:
     case VLTL_AST_OPERATION_KIND_EQUALS:
-    case VLTL_AST_OPERATION_KIND_DEF:
+    case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_GLOBAL:
     case VLTL_AST_OPERATION_KIND_CONSTANT:
     case VLTL_AST_OPERATION_KIND_RETURN:
+    case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_BODY_OPEN:
+    case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
         break;
     default:
         return false;
@@ -446,7 +464,7 @@ size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind
     case VLTL_AST_OPERATION_KIND_DIV:
         return 2;
         break;
-    case VLTL_AST_OPERATION_KIND_DEF:
+    case VLTL_AST_OPERATION_KIND_LOCAL:
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
@@ -466,6 +484,15 @@ size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
         return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_FUNCTION:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_BODY_OPEN:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
+        return 0;
         break;
     default:
         return 0;
@@ -665,7 +692,10 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         IESTACK_PUSH(&vltl_global_errors, ret, "Bad precedence for tree->last!");
         return ret;
     }
-    if(pushed_precedence <= tree_last_precedence) {
+    if(
+        pushed_precedence <= tree_last_precedence &&
+        vltl_ast_operation_argc(*tree->last) < vltl_ast_operation_kind_argc(tree->last->kind)
+    ) {
         ret = vltl_ast_operation_insert(
                   tree, tree->last, pushed,
                   vltl_ast_operation_argc(*(tree->last))
@@ -677,6 +707,37 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
 
         tree->last = pushed;
         return 0;
+    }
+
+    if(vltl_ast_operation_argc(*pushed) == vltl_ast_operation_kind_argc(pushed->kind)) {
+        bool done = false;
+        possible_target = tree->last;
+        while(!done && possible_target != NULL) {
+            Vltl_ast_operation_precedence possible_target_precedence = { 0 };
+            ret = vltl_ast_operation_precedence_determine(&possible_target_precedence, *possible_target);
+            if(ret) {
+                return ret;
+            }
+
+            if(
+                pushed_precedence <= possible_target_precedence &&
+                vltl_ast_operation_argc(*possible_target) < vltl_ast_operation_kind_argc(possible_target->kind)
+            ) {
+                ret = vltl_ast_operation_insert(
+                          tree, possible_target, pushed,
+                          vltl_ast_operation_argc(*possible_target)
+                      );
+                if(ret) {
+                    IESTACK_PUSH(&vltl_global_errors, ret, "Unable to insert node into tree!");
+                    return ret;
+                }
+
+                tree->last = pushed;
+                return 0;
+            }
+
+            possible_target = possible_target->parent;
+        }
     }
 
     bool need_to_displace = false;
@@ -859,6 +920,42 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                     return ret;
                 }
                 break;
+            case VLTL_LANG_OPERATION_KIND_LOCAL:
+                operation_kind = VLTL_AST_OPERATION_KIND_LOCAL;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_FUNCTION:
+                operation_kind = VLTL_AST_OPERATION_KIND_FUNCTION;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_BODY_OPEN:
+                operation_kind = VLTL_AST_OPERATION_KIND_BODY_OPEN;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_BODY_CLOSE:
+                operation_kind = VLTL_AST_OPERATION_KIND_BODY_CLOSE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
             case VLTL_LANG_OPERATION_KIND_ADD:
                 operation_kind = VLTL_AST_OPERATION_KIND_ADD;
 
@@ -896,7 +993,8 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 }
                 break;
             default:
-                IESTACK_PUSH(&vltl_global_errors, ret, "Unknown VLTL_LANG_OPERATION_KIND!");
+                ret = EINVAL;
+                IESTACK_PUSH(&vltl_global_errors, EINVAL, "Unknown VLTL_LANG_OPERATION_KIND!");
                 return EINVAL;
                 break;
             }

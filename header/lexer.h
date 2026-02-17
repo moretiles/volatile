@@ -29,15 +29,6 @@ typedef struct vltl_lexer_line {
     size_t token_count;
 } Vltl_lexer_line;
 
-typedef struct vltl_lexer_function {
-    const char *name;
-
-    Vqueue *variable_lines;
-    Vqueue *prelude_lines;
-    Vqueue *normal_lines;
-    Vqueue *defer_lines;
-} Vltl_lexer_function;
-
 bool vltl_lexer_line_valid(const Vltl_lexer_line line);
 int vltl_lexer_token_init(
     Vltl_lexer_token *dest,
@@ -49,7 +40,7 @@ int vltl_lexer_token_chomp(
     size_t *start_of_next_token, size_t *end_of_next_token,
     Vltl_lang_token_kind *presumed_token_kind, const char *line
 );
-int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, const Vltl_lang_token_kind token_kind);
+int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t src_len, const Vltl_lang_token_kind token_kind);
 
 #ifdef __cplusplus
 }

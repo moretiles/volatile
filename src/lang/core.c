@@ -4,3 +4,4 @@
 #include <lang/local.c>
 #include <lang/global.c>
 #include <lang/operation.c>
+#include <lang/function.c>

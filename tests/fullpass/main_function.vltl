@@ -1,0 +1,6 @@
+function main {
+    return num_1 + num_2
+}
+
+global num_1 = 5
+global num_2 = 4 + 3 + 2 + 1

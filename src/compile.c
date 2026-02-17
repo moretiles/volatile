@@ -1,4 +1,5 @@
 #include <ds/iestack.h>
+#include <lang/function.h>
 #include <isa.h>
 #include <compile.h>
 
@@ -6,6 +7,54 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+
+size_t vltl_compile_line_trio_queue_advise(size_t num_elems) {
+    return sizeof(Vltl_compile_line_trio_queue) + vqueue_advise(sizeof(Vltl_compile_line_trio), num_elems);
+}
+
+int vltl_compile_line_trio_queue_init(Vltl_compile_line_trio_queue **dest, void *memory, size_t num_elems) {
+    Vltl_compile_line_trio_queue *queue = NULL;
+    int ret = 0;
+    char *memory_as_chars = memory;
+
+    if(dest == NULL || memory == NULL || num_elems == 0) {
+        return EINVAL;
+    }
+
+    queue = (void *) &(memory_as_chars[0]);
+    ret = vqueue_init(&(queue->trio_queue), &(memory_as_chars[sizeof(Vltl_compile_line_trio_queue)]), sizeof(Vltl_compile_line_trio), num_elems);
+    if(ret) {
+        return ret;
+    }
+    *dest = queue;
+    return 0;
+}
+
+int vltl_compile_line_trio_queue_enqueue(Vltl_compile_line_trio_queue *queue, Vltl_compile_line_trio *src) {
+    if(queue == NULL || src == NULL) {
+        return EINVAL;
+    }
+
+    return vqueue_enqueue(queue->trio_queue, src, false);
+}
+
+int vltl_compile_line_trio_queue_dequeue(Vltl_compile_line_trio_queue *queue, Vltl_compile_line_trio *dest) {
+    if(queue == NULL || dest == NULL) {
+        return EINVAL;
+    }
+
+    return vqueue_dequeue(queue->trio_queue, dest);
+}
+
+void vltl_compile_line_trio_queue_deinit(Vltl_compile_line_trio_queue *queue) {
+    if(queue == NULL) {
+        return;
+    }
+
+    vqueue_deinit(queue->trio_queue);
+    queue->trio_queue = NULL;
+    return;
+}
 
 int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_operation operation) {
     if(dest == NULL || !vltl_sast_operation_valid(operation)) {
@@ -170,6 +219,9 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
         }
     }
 
+    // indentation because this must be inside of a function
+    fputs("\t", dest);
+
     ret = vltl_compile_operation_convert(dest, operation);
     if(ret != 0) {
         IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_compile_operation_convert!");
@@ -191,6 +243,50 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     }
 
     switch(src->root->kind) {
+    case VLTL_SAST_OPERATION_KIND_FUNCTION:
+        // this is a psuedo-instruction
+        ;
+
+        // TODO: Fully implement functions
+        // Need to figure out how I want to store function and what is associated with it
+        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        if(created_function == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+
+        ret = vltl_lang_function_init(created_function, src->root->evaluates_to.as_unknown);
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Could not initialize lexer function!");
+            return ret;
+        }
+
+        ret = nkht_set(vltl_global_table_functions, src->root->evaluates_to.as_unknown, &created_function);
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+        vltl_global_context.function = created_function;
+        fputs(src->root->evaluates_to.as_unknown, dest);
+        fputs(":\n", dest);
+        
+        // TODO: handle decrementing for storage of locals with a given function in a smart way
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x80\n", dest);
+
+        return 0;
+        break;
+    case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
+        // this is a psuedo-instruction
+        ;
+
+        // TODO: Fully implement functions
+        vltl_global_context.function = NULL;
+
+        return 0;
+        break;
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
         // this is a psuedo-instruction
         ;
@@ -227,6 +323,57 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         }
 
         return 0;
+        break;
+    case VLTL_SAST_OPERATION_KIND_LOCAL:
+        // this is a psuedo-instruction
+        ;
+
+        if(vltl_global_context.function == NULL) {
+            return EINVAL;
+        }
+
+        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_literal == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
+        };
+
+        if(src->root->destination.as_unknown == NULL) {
+            ret = EINVAL;
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+            return ret;
+        }
+        ret = vltl_lang_function_local_set(
+            vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
+            NULL, created_literal);
+        if(ret) {
+            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+
+        Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
+        *(child_with_name_of_local) = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .belongs_to = child_with_name_of_local->belongs_to,
+            .parent = child_with_name_of_local->parent,
+            .evaluates_to = (Vltl_asm_operand) {
+                .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+                .as_memory = (Vltl_asm_operand_memory) {
+                    .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                    .name = child_with_name_of_local->evaluates_to.as_unknown,
+                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
+                }
+            }
+        };
+
+        return vltl_compile_convert_recurse(dest, src, src->root->lchild);
         break;
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
         // this is a psuedo-instruction
@@ -272,15 +419,76 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     return vltl_compile_convert_recurse(dest, src, src->root);
 }
 
+int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
+    if(dest == NULL || src_line == NULL) {
+        return EINVAL;
+    }
+
+    int ret = 0;
+
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+
+    char *debug_buf = NULL;
+    const size_t debug_buf_cap = 9999;
+    size_t debug_buf_len = 0;
+    FILE *debug_file = NULL;
+
+    // lexer
+    ret = vltl_lexer_line_convert(&line, src_line);
+    if(ret) {
+        return ret;
+    }
+
+    if(line.token_count == 0) {
+        fprintf(dest, "// line #%lu\n", line_number);
+        fputs("\n", dest);
+        return 0;
+    }
+
+    // ast tree
+    ret = vltl_ast_tree_convert(&ast_tree, &line);
+    if(ret) {
+        debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
+        vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
+        debug_file = fopen("scratch/ast_debug.dot", "w");
+        assert(debug_file != NULL);
+        fputs(debug_buf, debug_file);
+        fclose(debug_file);
+        return ret;
+    }
+
+    // sast tree
+    ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+    if(ret) {
+        debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
+        vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
+        debug_file = fopen("scratch/sast_debug.dot", "w");
+        assert(debug_file != NULL);
+        fputs(debug_buf, debug_file);
+        fclose(debug_file);
+        return ret;
+    }
+
+    // compile
+    fprintf(dest, "// line #%lu\n", line_number);
+    ret = vltl_compile_convert(dest, &sast_tree);
+    fputs("\n", dest);
+    if(ret) {
+        return ret;
+    }
+
+    return ret;
+}
+
 int vltl_compile_file(char *dest_filename, char *src_filename) {
     int ret = 0;
     FILE *src_file = NULL;
     FILE *assembly_file = NULL;
     char *assembly_filename = NULL;
     char *big_buf = NULL;
-    char *debug_buf = NULL;
     FILE *dest_file = NULL;
-    FILE *debug_file = NULL;
     const size_t filename_cap = 99;
     if(
         dest_filename == NULL || strlen(dest_filename) > filename_cap ||
@@ -296,6 +504,31 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         goto vltl_compile_file_error;
     }
 
+    Vltl_compile_line_trio_queue *import_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&import_lines, import_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
+    Vltl_compile_line_trio_queue *struct_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&struct_lines, struct_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
+    Vltl_compile_line_trio_queue *constant_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&constant_lines, constant_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
+    Vltl_compile_line_trio_queue *global_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&global_lines, global_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
+    Vltl_compile_line_trio_queue *function_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&function_lines, function_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
     const char *assembly_filename_extension = ".S";
     const size_t dest_filename_len = strlen(dest_filename);
     const size_t assembly_filename_extension_len = strlen(assembly_filename_extension);
@@ -316,8 +549,6 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     }
 
     const size_t big_buf_cap = 9999;
-    const size_t debug_buf_cap = 9999;
-    size_t debug_buf_len = 0;
     big_buf = varena_alloc(&vltl_global_allocator, big_buf_cap);
     if(big_buf == NULL) {
         ret = ENOMEM;
@@ -326,61 +557,220 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
 
     fputs(".intel_syntax\n", assembly_file);
     fputs("\n", assembly_file);
-    fputs(".global main\n", assembly_file);
-    fputs("\n", assembly_file);
     fputs(".text\n", assembly_file);
-    fputs("main:\n", assembly_file);
 
     bool done = false;
+    size_t line_number = 1;
+    char *start_of_line = &(big_buf[0]);
     if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
         done = true;
     }
 
+    /*
     // old
-    size_t line_number = 1;
-    char *start_of_line = &(big_buf[0]);
     while(!done) {
-        Vltl_lexer_line line = { 0 };
-        Vltl_ast_tree ast_tree = { 0 };
-        Vltl_sast_tree sast_tree = { 0 };
+        Vltl_lang_token first_token = { 0 };
+        {
+            size_t start_of_next_token = 0, end_of_next_token = 0;
+            Vltl_lang_token_kind presumed_token_kind = { 0 };
+            Vltl_lexer_token first_token = { 0 };
 
-        // lexer
-        ret = vltl_lexer_line_convert(&line, start_of_line);
+            ret = vltl_lexer_token_chomp(
+                      &start_of_next_token, &end_of_next_token, &presumed_token_kind, start_of_line
+                  );
+            if(ret == 0) {
+                ret = vltl_lexer_token_tokenize(
+                          &first_token, &(start_of_line[start_of_next_token]),
+                          end_of_next_token - start_of_next_token, presumed_token_kind
+                      );
+                if(ret) {
+                    goto vltl_compile_file_error;
+                }
+            } else if(ret == ENODATA) {
+                // pass
+            } else if(ret) {
+                goto vltl_compile_file_error;
+            }
+        }
+
+        ret = vltl_compile_line(assembly_file, start_of_line, line_number);
         if(ret) {
             goto vltl_compile_file_error;
         }
 
-        // ast tree
-        ret = vltl_ast_tree_convert(&ast_tree, &line);
+        if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
+            done = true;
+        } else {
+            line_number++;
+        }
+    }
+
+    fputs("\n", assembly_file);
+
+    // Write all functions
+    {
+        Nkht_iterator iterator = { 0 };
+        char *iterated_function_key = NULL;
+        Vltl_lang_function *iterated_function_val = NULL;
+        ret = nkht_iterate_start(vltl_global_table_functions, &iterator);
         if(ret) {
-            debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
-            vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
-            debug_file = fopen("scratch/ast_debug.dot", "w");
-            assert(debug_file != NULL);
-            fputs(debug_buf, debug_file);
-            fclose(debug_file);
             goto vltl_compile_file_error;
         }
 
-        // sast tree
-        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+        while(
+            nkht_iterate_next(
+                vltl_global_table_functions, &iterator, (void *) &iterated_function_key, &iterated_function_val
+            ) != ENODATA
+        ) {
+            if(iterated_function_key == NULL || iterated_function_val == NULL) {
+                ret = ENOTRECOVERABLE;
+                goto vltl_compile_file_error;
+            }
+
+            fprintf(assembly_file, ".global %s\n", iterated_function_key);
+        }
+    }
+
+    fputs("\n", assembly_file);
+    fputs(".data\n", assembly_file);
+    // Write all globals
+    {
+        Nkht_iterator iterator = { 0 };
+        char *iterated_global_key = NULL;
+        Vltl_lang_global *iterated_global_val = NULL;
+        ret = nkht_iterate_start(vltl_global_table_globals, &iterator);
         if(ret) {
-            debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
-            vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
-            debug_file = fopen("scratch/sast_debug.dot", "w");
-            assert(debug_file != NULL);
-            fputs(debug_buf, debug_file);
-            fclose(debug_file);
             goto vltl_compile_file_error;
         }
 
-        // compile
-        fprintf(assembly_file, "// line #%lu\n", line_number++);
-        ret = vltl_compile_convert(assembly_file, &sast_tree);
-        fputs("\n", assembly_file);
-        if(ret) {
+        while(
+            nkht_iterate_next(
+                vltl_global_table_globals, &iterator, (void *) &iterated_global_key, &iterated_global_val
+            ) != ENODATA
+        ) {
+            if(iterated_global_key == NULL || iterated_global_val == NULL) {
+                ret = ENOTRECOVERABLE;
+                goto vltl_compile_file_error;
+            }
+
+            fprintf(assembly_file, ".global %s\n", iterated_global_key);
+            fprintf(
+                assembly_file,
+                "%s: .quad %ld\n",
+                iterated_global_key,
+                (int64_t) iterated_global_val->literal->fields[0]
+            );
+        }
+    }
+    */
+
+    // new
+    Vltl_compile_line_trio line_trio = { 0 };
+    const size_t current_line_cap = 999;
+    char *current_line = varena_alloc(&vltl_global_allocator, current_line_cap);
+
+    while(!done) {
+        // determine type of first token
+        Vltl_lexer_token first_token = { 0 };
+        size_t start_of_next_token = 0, end_of_next_token = 0;
+        Vltl_lang_token_kind presumed_token_kind = { 0 };
+
+        ret = vltl_lexer_token_chomp(
+                  &start_of_next_token, &end_of_next_token, &presumed_token_kind, start_of_line
+              );
+        if(ret == 0) {
+            ret = vltl_lexer_token_tokenize(
+                      &first_token, &(start_of_line[start_of_next_token]),
+                      end_of_next_token - start_of_next_token, presumed_token_kind
+                  );
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+        } else if(ret == ENODATA) {
+            // pass
+        } else if(ret) {
             goto vltl_compile_file_error;
         }
+
+        line_trio = (Vltl_compile_line_trio) {
+            .filename = vltl_global_context.filename,
+            .line_number = line_number++,
+            .offset = ftell(src_file) - strlen(start_of_line)
+        };
+
+        if(first_token.token.kind == VLTL_LANG_TOKEN_KIND_OPERATION) {
+            switch(first_token.token.operation->operation_kind) {
+            case VLTL_LANG_OPERATION_KIND_CONSTANT:
+                vltl_compile_line_trio_queue_enqueue(constant_lines, &line_trio);
+                break;
+            case VLTL_LANG_OPERATION_KIND_GLOBAL:
+                vltl_compile_line_trio_queue_enqueue(global_lines, &line_trio);
+                break;
+            case VLTL_LANG_OPERATION_KIND_FUNCTION:
+                vltl_compile_line_trio_queue_enqueue(function_lines, &line_trio);
+                break;
+            //case "import":
+            //case "struct":
+            // not yet supported
+            case VLTL_LANG_OPERATION_KIND_UNSET:
+                // this is a blank line
+                break;
+            default:
+                // this is a line that is part of a function
+                break;
+            }
+        }
+
+        /*
+        if(vltl_global_context.function_name) {
+            switch(operation_kind_for_current_line) {
+            //case "local":
+            //case "prelude":
+            //case "defer":
+                // not yet supported
+                //ret = EINVAL;
+                //goto vltl_compile_file_error;
+                //break;
+            case VLTL_LANG_OPERATION_KIND_BODY_CLOSE:
+                // end of function
+
+                vltl_global_context.function_name = NULL;
+                break;
+            default:
+                vltl_compile_line_trio_queue_enqueue(current_function.normal_lines, &(start_of_line[start_of_next_token]));
+                break;
+            }
+        } else {
+            switch(operation_kind_for_current_line) {
+            //case "import":
+            //case "struct":
+            //case "func":
+                // not yet supported
+                //ret = EINVAL;
+                //goto vltl_compile_file_error;
+                //break;
+            case VLTL_LANG_OPERATION_KIND_CONSTANT:
+                vltl_compile_line_trio_queue_enqueue(constant_lines, &(start_of_line[start_of_next_token]));
+                break;
+            case VLTL_LANG_OPERATION_KIND_GLOBAL:
+                vltl_compile_line_trio_queue_enqueue(global_lines, &(start_of_line[start_of_next_token]));
+                break;
+            case VLTL_LANG_OPERATION_KIND_FUNCTION:
+                vltl_global_context.function_name = "undetermined";
+                init current function
+                vltl_compile_line_trio_queue_enqueue(function_lines, &current_function);
+                break;
+            case VLTL_LANG_OPERATION_KIND_BODY_CLOSE:
+                // Must be the case that this is the end of a function
+                vltl_global_context.function_name = NULL;
+                break;
+            default:
+                ret = EINVAL;
+                goto vltl_compile_file_error;
+                break;
+            }
+        }
+        */
 
         {
             if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
@@ -389,8 +779,143 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         }
     }
 
-    fputs("mov %rax, %r11\n", assembly_file);
-    fputs("ret\n", assembly_file);
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(import_lines, &line_trio);
+        while(ret == 0) {
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(import_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(struct_lines, &line_trio);
+        while(ret == 0) {
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(struct_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(constant_lines, &line_trio);
+        while(ret == 0) {
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(constant_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(global_lines, &line_trio);
+        while(ret == 0) {
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(global_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(function_lines, &line_trio);
+        while(ret == 0) {
+            size_t line_number_offset = 0;
+
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number + line_number_offset++);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            while(vltl_global_context.function != NULL) {
+                fgets(current_line, current_line_cap, src_file);
+                ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number + line_number_offset++);
+                if(ret) {
+                    goto vltl_compile_file_error;
+                }
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(function_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    fputs("\n", assembly_file);
+
+    // Write all functions
+    {
+        Nkht_iterator iterator = { 0 };
+        char *iterated_function_key = NULL;
+        Vltl_lang_function *iterated_function_val = NULL;
+        ret = nkht_iterate_start(vltl_global_table_functions, &iterator);
+        if(ret) {
+            goto vltl_compile_file_error;
+        }
+
+        while(
+            nkht_iterate_next(
+                vltl_global_table_functions, &iterator, (void *) &iterated_function_key, &iterated_function_val
+            ) != ENODATA
+        ) {
+            if(iterated_function_key == NULL || iterated_function_val == NULL) {
+                ret = ENOTRECOVERABLE;
+                goto vltl_compile_file_error;
+            }
+
+            fprintf(assembly_file, ".global %s\n", iterated_function_key);
+            fprintf(assembly_file, ".type %s, function\n", iterated_function_key);
+        }
+    }
+
     fputs("\n", assembly_file);
 
     fputs(".data\n", assembly_file);
@@ -414,158 +939,16 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
                 goto vltl_compile_file_error;
             }
 
+            fprintf(assembly_file, ".global %s\n", iterated_global_key);
+            fprintf(assembly_file, ".type %s, gnu_unique_object\n", iterated_global_key);
             fprintf(
                 assembly_file,
-                "%s: .long %ld\n",
+                "%s: .quad %ld\n",
                 iterated_global_key,
                 (int64_t) iterated_global_val->literal->fields[0]
             );
         }
     }
-
-    // Write all constants
-    // Actually... don't
-    /*
-    {
-        Nkht_iterator iterator = { 0 };
-        char *iterated_constant_key = NULL;
-        Vltl_lang_constant *iterated_constant_val = NULL;
-        ret = nkht_iterate_start(vltl_global_table_constants, &iterator);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-
-        while(
-            nkht_iterate_next(
-                vltl_global_table_constants, &iterator, (void *) &iterated_constant_key, &iterated_constant_val
-            ) != ENODATA
-        ) {
-            if(iterated_constant_key == NULL || iterated_constant_val == NULL) {
-                ret = ENOTRECOVERABLE;
-                goto vltl_compile_file_error;
-            }
-
-            fprintf(
-                assembly_file,
-                "%s: .long %ld\n",
-                iterated_constant_key,
-                (int64_t) iterated_constant_val->literal->fields[0]
-            );
-        }
-    }
-    */
-
-    // new
-    /*
-    done = false;
-    while(!done) {
-        Vltl_lexer_line line = { 0 };
-        Vltl_ast_tree ast_tree = { 0 };
-        Vltl_sast_tree sast_tree = { 0 };
-
-        // lexer
-        ret = vltl_lexer_line_convert(&line, start_of_line);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-
-        if(inside function rn) {
-            switch(first_token of line) {
-            case "var":
-            case "prelude":
-            case "defer":
-                // not yet supported
-                ret = EINVAL;
-                goto vltl_compile_file_error;
-            case "}":
-                // end of function
-                // do something
-                break;
-            default:
-                vqueue_enqueue(current_function_vqueue(current_function), &line);
-                break;
-            }
-        } else {
-            switch(first_token of line) {
-            case "import":
-            case "struct":
-            case "func":
-                // not yet supported
-                ret = EINVAL;
-                goto vltl_compile_file_error;
-                break;
-            case "const":
-                vqueue_enqueue(&constant_lines, &line);
-                break;
-            case "global":
-                vqueue_enqueue(&global_lines, &line);
-                break;
-            default:
-                ret = EINVAL;
-                goto vltl_compile_file_error;
-                break;
-            }
-        }
-
-        {
-            if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
-                done = true;
-            }
-        }
-    }
-
-    for(auto lexer_line : import_lines) {
-    }
-
-    for(auto lexer_line : struct_lines) {
-    }
-
-    for(auto lexer_line : constant_lines) {
-    }
-
-    for(auto lexer_line : global_lines) {
-    }
-
-    for(auto lexer_function : lexer_functions) {
-        for(auto variable_line : variable_lines) {
-        }
-
-        for(auto prelude_line : prelude_lines) {
-        }
-
-        for(auto normal_line : normal_lines) {
-        }
-
-        for(auto defer_line : defer_lines) {
-        }
-    }
-
-    for(auto lexer_line : sorted_lines) {
-        // ast tree
-        ret = vltl_ast_tree_convert(&ast_tree, &line);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-        //vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
-        //fputs(buf, file);
-
-        // sast tree
-        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-        //vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
-        //fputs(buf, file);
-
-        // compile
-        fprintf(assembly_file, "// line #%lu\n", line_number++);
-        ret = vltl_compile_convert(assembly_file, &sast_tree);
-        fputs("\n", assembly_file);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-    }
-    */
 
     // Once I get more of an idea of how I want to handle symbols/linking then can write code to fork and call gcc
     //const char *gcc_path = "/bin/gcc";

@@ -1,3 +1,5 @@
-5 + 4
-3 - 1
-2 + 3
+function main {
+    5 + 4
+    3 - 1
+    return 2 + 3
+}

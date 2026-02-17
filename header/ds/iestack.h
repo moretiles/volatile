@@ -38,11 +38,15 @@ int iestack_pop(Iestack *stack, Iestack_error *dest_error);
 #define IESTACK_PUSH(stack, error_code, string) assert(!iestack_push(stack, error_code, string, __FILE__, __LINE__))
 #define IESTACK_PUSHF(stack, error_code, fstring, ...) \
 { \
-    char buf_tmp[IESTACK_ERROR_STRLEN]; \
-    buf_tmp[0] = 0; \
-    snprintf(buf_tmp, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
-    IESTACK_PUSH(stack, error_code, buf_tmp); \
+    char buf_tmp___[IESTACK_ERROR_STRLEN]; \
+    buf_tmp___[0] = 0; \
+    snprintf(buf_tmp___, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
+    IESTACK_PUSH(stack, error_code, buf_tmp___); \
 }
+#define IESTACK_RETURN(stack, error_code, string) IESTACK_PUSH(stack, error_code, string); \
+return error_code
+#define IESTACK_RETURNF(stack, error_code, fstring, ...) IESTACK_PUSHF(stack, error_code, fstring, __VA_ARGS__); \
+return error_code
 
 #ifdef __cplusplus
 }

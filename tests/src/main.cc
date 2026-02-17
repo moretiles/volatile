@@ -1,18 +1,37 @@
-#include <debug.h>
-#include <ast.h>
 #include <asm/instruction.h>
 #include <asm/operand.h>
 #include <asm/register.h>
+#include <ast.h>
 #include <compile.h>
+#include <debug.h>
+#include <ds/iestack.h>
 #include <global.h>
 #include <isa.h>
+#include <lang/function.h>
 #include <lang/type.h>
 #include <sast.h>
-#include <ds/iestack.h>
 
 #include <gtest/gtest.h>
 
 #include <memory>
+
+namespace {
+TEST(exists, allocator) {
+    vltl_global_init();
+    ASSERT_NE(nullptr, vltl_global_allocator);
+}
+
+TEST(exists, tables) {
+    vltl_global_init();
+    ASSERT_NE(nullptr, vltl_global_table_constants);
+    ASSERT_NE(nullptr, vltl_global_table_globals);
+    ASSERT_NE(nullptr, vltl_global_table_locals);
+    ASSERT_NE(nullptr, vltl_global_table_types);
+    ASSERT_NE(nullptr, vltl_global_table_functions);
+    ASSERT_NE(nullptr, vltl_global_table_operations);
+    ASSERT_NE(nullptr, vltl_global_table_attributes);
+}
+}
 
 namespace {
 int add_2(int *dest, int *src1, int *src2) {
@@ -74,6 +93,7 @@ int foo(void) {
 }
 
 TEST(ds, ierror_simple) {
+    vltl_global_init();
     int a = 2;
     int b = 3;
     int c = 0;
@@ -92,6 +112,7 @@ TEST(ds, ierror_simple) {
 
 namespace {
 TEST(vltl_sast, operation_insert_and_compile) {
+    vltl_global_init();
     Vltl_asm_operand operand_immediate_3 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
@@ -187,6 +208,7 @@ TEST(vltl_sast, operation_insert_and_compile) {
 }
 
 TEST(vltl_sast, operation_connect_and_compile) {
+    vltl_global_init();
     Vltl_asm_operand operand_immediate_3 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
@@ -482,6 +504,7 @@ public:
 };
 
 TEST_F(AstFixture1, operation_insert) {
+    vltl_global_init();
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, nullptr, &ast_add_operation, 0));
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, ast_tree.root, &ast_eval1_operation, 0));
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, ast_tree.root, &ast_eval2_operation, 1));
@@ -490,6 +513,7 @@ TEST_F(AstFixture1, operation_insert) {
 }
 
 TEST_F(AstFixture1, operation_adopt) {
+    vltl_global_init();
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, nullptr, &ast_add_operation, 0));
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, ast_tree.root, &ast_eval1_operation, 0));
     ASSERT_EQ(0, vltl_ast_operation_insert(&ast_tree, ast_tree.root, &ast_eval2_operation, 1));
@@ -506,6 +530,7 @@ TEST_F(AstFixture1, operation_adopt) {
 }
 
 TEST_F(AstFixture1, tree_insert) {
+    vltl_global_init();
     // 1 * 2 + 3 * 4
     ASSERT_EQ(0, vltl_ast_tree_insert(&ast_tree, &ast_eval1_operation));
     ASSERT_EQ(0, vltl_ast_tree_insert(&ast_tree, &ast_mul_operation1));
@@ -526,21 +551,19 @@ TEST_F(AstFixture1, tree_insert) {
 
 namespace {
 TEST(vltl_global, table) {
+    vltl_global_init();
     Vltl_lang_operation *current_operation = NULL;
     Vltl_lang_global *current_global = NULL;
-    Vltl_lang_global *current_local = NULL;
 
     ASSERT_FALSE(nkht_get(vltl_global_table_operations, "+", &current_operation));
     ASSERT_FALSE(nkht_get(vltl_global_table_operations, "-", &current_operation));
 
     ASSERT_FALSE(nkht_get(vltl_global_table_globals, "a", &current_global));
     ASSERT_FALSE(nkht_get(vltl_global_table_globals, "b", &current_global));
-
-    ASSERT_FALSE(nkht_get(vltl_global_table_locals, "c", &current_local));
-    ASSERT_FALSE(nkht_get(vltl_global_table_locals, "d", &current_local));
 }
 
 TEST(vltl_global, registers_use_and_reset) {
+    vltl_global_init();
     Vltl_global_register *expect_r11, *expect_r10;
     ASSERT_EQ(0, vltl_global_registers_use(&expect_r11));
     ASSERT_EQ(0, vltl_global_registers_use(&expect_r10));
@@ -550,6 +573,7 @@ TEST(vltl_global, registers_use_and_reset) {
 
 namespace {
 TEST(vltl_lexer, line_convert_simple) {
+    vltl_global_init();
     {
         const char *src_line = "1 + 2 - 3 + 4 - 5";
         Vltl_lexer_line lexer_line = {};
@@ -561,6 +585,7 @@ TEST(vltl_lexer, line_convert_simple) {
 
 namespace {
 TEST(fullpass, oneline_addsub) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "3 + 4 - 2";
@@ -609,6 +634,7 @@ TEST(fullpass, oneline_addsub) {
 }
 
 TEST(fullpass, oneline_return_addsub) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "return 3 + 4 - 2";
@@ -655,6 +681,7 @@ TEST(fullpass, oneline_return_addsub) {
 }
 
 TEST(fullpass, oneline_equals_global) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "a = 6 + 7";
@@ -703,6 +730,7 @@ TEST(fullpass, oneline_equals_global) {
 }
 
 TEST(fullpass, oneline_use_globals) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "a + a + b";
@@ -751,6 +779,7 @@ TEST(fullpass, oneline_use_globals) {
 }
 
 TEST(fullpass, oneline_use_constants) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "one + 0";
@@ -799,6 +828,7 @@ TEST(fullpass, oneline_use_constants) {
 }
 
 TEST(fullpass, oneline_define_global) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "global abc = 1 + 2 + 3";
@@ -846,6 +876,7 @@ TEST(fullpass, oneline_define_global) {
 }
 
 TEST(fullpass, oneline_define_constant) {
+    vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
     const char *mathline = "constant running_out_of_variable_names = 3 + 4 + 5";
@@ -892,45 +923,124 @@ TEST(fullpass, oneline_define_constant) {
     ASSERT_NE(nullptr, check_if_exists);
 }
 
+TEST(fullpass, oneline_define_function) {
+    vltl_global_init();
+    char buf[999];
+    size_t buf_len = 0;
+    const char *mathline = "function just_return_3 {\n"
+                           "    return 3\n"
+                           "}";
+    Vltl_lexer_line line = { 0 };
+    Vltl_ast_tree ast_tree = { 0 };
+    Vltl_sast_tree sast_tree = { 0 };
+    FILE *file = nullptr;
+
+    // lexer
+    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
+
+    // ast tree
+    const char *ast_filename = "scratch/ast.dot";
+    file = fopen(ast_filename, "w");
+    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
+    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // sast tree
+    const char *sast_filename = "scratch/sast.dot";
+    file = fopen(sast_filename, "w");
+    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
+    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    fputs(buf, file);
+    fflush(file);
+    fclose(file);
+    file = nullptr;
+
+    // compile
+    const char *asm_filename = "scratch/asm.S";
+    file = fopen(asm_filename, "w");
+    ASSERT_NE(nullptr, file);
+    fputs(".intel_syntax\n", file);
+    fputs("\n", file);
+    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
+    fflush(file);
+    fclose(file);
+
+    Vltl_lang_function *check_if_exists = nullptr;
+    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "just_return_3", &check_if_exists));
+    ASSERT_NE(nullptr, check_if_exists);
+}
+
 TEST(fullpass, manylines_addsub) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/manylines_addsub.bin";
     char src_filename[] = "tests/fullpass/manylines_addsub.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, simple_globals) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/simple_globals.bin";
     char src_filename[] = "tests/fullpass/simple_globals.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, simple_locals) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/simple_locals.bin";
     char src_filename[] = "tests/fullpass/simple_locals.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, simple_constants) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/simple_constants.bin";
     char src_filename[] = "tests/fullpass/simple_constants.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, modify_globals) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/modify_globals.bin";
     char src_filename[] = "tests/fullpass/modify_globals.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, define_and_use_globals) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/define_and_use_globals.bin";
     char src_filename[] = "tests/fullpass/define_and_use_globals.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
 TEST(fullpass, return_using_globals_and_constants) {
+    vltl_global_init();
     char dest_filename[] = "tests/fullpass/return_using_globals_and_constants.bin";
     char src_filename[] = "tests/fullpass/return_using_globals_and_constants.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, main_function) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/main_function.bin";
+    char src_filename[] = "tests/fullpass/main_function.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+
+    Vltl_lang_function *the_main_function = nullptr;
+    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "main", &the_main_function));
+}
+
+TEST(fullpass, several_functions) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/several_functions.bin";
+    char src_filename[] = "tests/fullpass/several_functions.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+
+    Vltl_lang_function *function = nullptr;
+    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "return_1", &function));
+    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "return_2", &function));
+    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "return_3", &function));
 }
 }
