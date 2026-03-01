@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#define VLTL_LEXER_LINE_TOKENS_MAX (20LU)
+#define VLTL_LEXER_LINE_TOKENS_MAX (99LU)
 
 typedef struct vltl_lexer_token {
     const char *line;

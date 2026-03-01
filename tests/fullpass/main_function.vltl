@@ -1,6 +1,6 @@
-function main {
-    return num_1 + num_2
+function main_function_main {
+    return main_function_num_1 + main_function_num_2
 }
 
-global num_1 = 5
-global num_2 = 4 + 3 + 2 + 1
+global main_function_num_1 = 5
+global main_function_num_2 = 4 + 3 + 2 + 1

@@ -1,6 +1,6 @@
-function main {
-    local c = 1
-    local d = 2
+function simple_locals_main {
+    local simple_locals_c = 1
+    local simple_locals_d = 2
 
-    return c + d + c
+    return simple_locals_c + simple_locals_d + simple_locals_c
 }

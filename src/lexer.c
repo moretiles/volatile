@@ -1,13 +1,14 @@
-#include <lang/type.h>
-#include <lang/token.h>
-#include <lexer.h>
+#include <ds/btrc.h>
+#include <ds/iestack.h>
 #include <ds/varena.h>
 #include <global.h>
-#include <lang/literal.h>
 #include <lang/constant.h>
 #include <lang/global.h>
+#include <lang/literal.h>
 #include <lang/local.h>
-#include <ds/iestack.h>
+#include <lang/token.h>
+#include <lang/type.h>
+#include <lexer.h>
 
 #include <string.h>
 #include <errno.h>
@@ -88,12 +89,16 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
             IESTACK_PUSH(&vltl_global_errors, ENOMEM, "Unable to allocate memory for copy of token substring!");
             return ENOMEM;
         }
-        memcpy(
-            memory_for_this_token,
-            &(src[offset_into_line_buffer + start_of_current_line]),
-            end_of_current_line - start_of_current_line
-        );
-        memory_for_this_token[offset_into_line_buffer + end_of_current_line - start_of_current_line] = 0;
+
+        size_t len_of_current_line = 0;
+        ret = btrc_strncpy(
+                  &len_of_current_line,
+                  memory_for_this_token, &(src[offset_into_line_buffer + start_of_current_line]),
+                  end_of_current_line - start_of_current_line
+              );
+        if(ret) {
+            return ret;
+        }
         dest->tokens[current_token_index].line = memory_for_this_token;
 
         ret = vltl_lexer_token_tokenize(
@@ -430,6 +435,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         return EINVAL;
     }
 
+    // Use memcpy here to copy substring with token from string containing it and null terminate
     memcpy(tmp, src, src_len);
     tmp[src_len] = 0;
 
@@ -563,6 +569,22 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         if(ret == 0) {
             dest->token.kind = VLTL_LANG_TOKEN_KIND_CONSTANT;
             dest->token.constant = constant;
+
+            return 0;
+        } else if(ret == ENODATA) {
+            // keep going
+        } else {
+            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            return ENOTRECOVERABLE;
+        }
+    }
+
+    {
+        Vltl_lang_function *function = NULL;
+        int ret = nkht_get(vltl_global_table_functions, tmp, &function);
+        if(ret == 0) {
+            dest->token.kind = VLTL_LANG_TOKEN_KIND_FUNCTION;
+            dest->token.function = function;
 
             return 0;
         } else if(ret == ENODATA) {

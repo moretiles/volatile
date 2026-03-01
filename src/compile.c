@@ -65,10 +65,16 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
     case VLTL_SAST_OPERATION_KIND_EVAL:
         *dest = operation.evaluates_to;
         break;
+    case VLTL_SAST_OPERATION_KIND_CALL:
+    case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
+    case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_COMMA:
     case VLTL_SAST_OPERATION_KIND_LOAD:
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_ADD:
     case VLTL_SAST_OPERATION_KIND_SUB:
+    case VLTL_SAST_OPERATION_KIND_MUL:
+    case VLTL_SAST_OPERATION_KIND_DIV:
     case VLTL_SAST_OPERATION_KIND_RETURN:
         *dest = operation.destination;
         break;
@@ -109,6 +115,26 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         }
 
         switch(src->kind) {
+        case VLTL_SAST_OPERATION_KIND_CALL:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_CALL;
+            break;
+        case VLTL_SAST_OPERATION_KIND_COMMA:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_NOP;
+            break;
+        case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_NOP;
+            break;
+        case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_NOP;
+            break;
+        case VLTL_SAST_OPERATION_KIND_CSV:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_NOP;
+            break;
         case VLTL_SAST_OPERATION_KIND_LOAD:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
             as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_MOV;
@@ -120,6 +146,14 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         case VLTL_SAST_OPERATION_KIND_SUB:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
             as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_SUB;
+            break;
+        case VLTL_SAST_OPERATION_KIND_MUL:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_IMUL;
+            break;
+        case VLTL_SAST_OPERATION_KIND_DIV:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_IDIV;
             break;
         case VLTL_SAST_OPERATION_KIND_STORE:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
@@ -156,16 +190,41 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             return ret;
         }
 
-        size_t this_operation_argc = vltl_sast_operation_argc(*src);
-        bool this_operation_accepts_operands = true;
+        size_t this_operation_argc = vltl_sast_operation_args_argc(*src);
+        // some operations make use of operands implicitly, so don't print them
+        bool never_print_this_argument[VLTL_SAST_OPERATION_ARGUMENTS_MAX] = { 0 };
+
         switch(src->kind) {
+        case VLTL_SAST_OPERATION_KIND_CALL:
+            never_print_this_argument[1] = true;
+            break;
+        case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
+            never_print_this_argument[0] = true;
+            never_print_this_argument[1] = true;
+            break;
+        case VLTL_SAST_OPERATION_KIND_COMMA:
+            never_print_this_argument[0] = true;
+            never_print_this_argument[1] = true;
+            break;
+        case VLTL_SAST_OPERATION_KIND_CSV:
+            never_print_this_argument[0] = true;
+            never_print_this_argument[1] = true;
+            never_print_this_argument[2] = true;
+            break;
         case VLTL_SAST_OPERATION_KIND_RETURN:
-            this_operation_accepts_operands = false;
+            never_print_this_argument[0] = true;
+            break;
+        case VLTL_SAST_OPERATION_KIND_DIV:
+            never_print_this_argument[0] = true;
             break;
         default:
             break;
         }
-        for(size_t i = 0; this_operation_accepts_operands && i < this_operation_argc; i++) {
+        for(size_t i = 0; i < this_operation_argc; i++) {
+            if(never_print_this_argument[i]) {
+                continue;
+            }
+
             const Vltl_sast_operation current_operation = *(src->arguments[i]);
             fputs(" ", dest);
 
@@ -187,7 +246,7 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
                 return ret;
             }
 
-            if(i + 1 < this_operation_argc) {
+            if((i + 1) < this_operation_argc && !never_print_this_argument[i + 1]) {
                 fputs(",", dest);
             }
         }
@@ -210,12 +269,23 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
         return ret;
     }
 
-    for(size_t i = 0; i < vltl_sast_operation_argc(*operation); i++) {
+    for(size_t i = 0; i < vltl_sast_operation_args_argc(*operation); i++) {
         Vltl_sast_operation *ith_operation = operation->arguments[i];
         if(ith_operation->kind == VLTL_SAST_OPERATION_KIND_EVAL) {
             continue;
         } else {
             ret = vltl_compile_convert_recurse(dest, src, ith_operation);
+            if(ret) {
+                return ret;
+            }
+        }
+    }
+
+    for(size_t i = 0; i < vltl_sast_operation_before_argc(*operation); i++) {
+        Vltl_sast_operation *ith_operation = operation->before[i];
+        ret = vltl_compile_convert_recurse(dest, src, ith_operation);
+        if(ret) {
+            return ret;
         }
     }
 
@@ -227,6 +297,15 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
         IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_compile_operation_convert!");
         return ret;
     }
+
+    for(size_t i = 0; i < vltl_sast_operation_after_argc(*operation); i++) {
+        Vltl_sast_operation *ith_operation = operation->after[i];
+        ret = vltl_compile_convert_recurse(dest, src, ith_operation);
+        if(ret) {
+            return ret;
+        }
+    }
+
     return 0;
 }
 
@@ -270,9 +349,14 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         vltl_global_context.function = created_function;
         fputs(src->root->evaluates_to.as_unknown, dest);
         fputs(":\n", dest);
-        
+
         // TODO: handle decrementing for storage of locals with a given function in a smart way
         fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
         fputs("\tmov %rbp, %rsp\n", dest);
         fputs("\tsub %rsp, 0x80\n", dest);
 
@@ -283,6 +367,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         ;
 
         // TODO: Fully implement functions
+        vltl_lang_function_deinit(vltl_global_context.function);
         vltl_global_context.function = NULL;
 
         return 0;
@@ -351,8 +436,8 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             return ret;
         }
         ret = vltl_lang_function_local_set(
-            vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
-            NULL, created_literal);
+                  vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
+                  NULL, created_literal);
         if(ret) {
             IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
@@ -449,26 +534,32 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
 
     // ast tree
     ret = vltl_ast_tree_convert(&ast_tree, &line);
-    if(ret) {
+    // TODO: figure out better way to conditionally enable dumping of ast_tree to graphviz
+    if(true || ret) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
         debug_file = fopen("scratch/ast_debug.dot", "w");
         assert(debug_file != NULL);
         fputs(debug_buf, debug_file);
         fclose(debug_file);
-        return ret;
+        if(ret) {
+            return ret;
+        }
     }
 
     // sast tree
     ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-    if(ret) {
+    // TODO: figure out better way to conditionally enable dumping of sast_tree to graphviz
+    if(true || ret) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
         debug_file = fopen("scratch/sast_debug.dot", "w");
         assert(debug_file != NULL);
         fputs(debug_buf, debug_file);
         fclose(debug_file);
-        return ret;
+        if(ret) {
+            return ret;
+        }
     }
 
     // compile
@@ -566,105 +657,6 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
         done = true;
     }
 
-    /*
-    // old
-    while(!done) {
-        Vltl_lang_token first_token = { 0 };
-        {
-            size_t start_of_next_token = 0, end_of_next_token = 0;
-            Vltl_lang_token_kind presumed_token_kind = { 0 };
-            Vltl_lexer_token first_token = { 0 };
-
-            ret = vltl_lexer_token_chomp(
-                      &start_of_next_token, &end_of_next_token, &presumed_token_kind, start_of_line
-                  );
-            if(ret == 0) {
-                ret = vltl_lexer_token_tokenize(
-                          &first_token, &(start_of_line[start_of_next_token]),
-                          end_of_next_token - start_of_next_token, presumed_token_kind
-                      );
-                if(ret) {
-                    goto vltl_compile_file_error;
-                }
-            } else if(ret == ENODATA) {
-                // pass
-            } else if(ret) {
-                goto vltl_compile_file_error;
-            }
-        }
-
-        ret = vltl_compile_line(assembly_file, start_of_line, line_number);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-
-        if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
-            done = true;
-        } else {
-            line_number++;
-        }
-    }
-
-    fputs("\n", assembly_file);
-
-    // Write all functions
-    {
-        Nkht_iterator iterator = { 0 };
-        char *iterated_function_key = NULL;
-        Vltl_lang_function *iterated_function_val = NULL;
-        ret = nkht_iterate_start(vltl_global_table_functions, &iterator);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-
-        while(
-            nkht_iterate_next(
-                vltl_global_table_functions, &iterator, (void *) &iterated_function_key, &iterated_function_val
-            ) != ENODATA
-        ) {
-            if(iterated_function_key == NULL || iterated_function_val == NULL) {
-                ret = ENOTRECOVERABLE;
-                goto vltl_compile_file_error;
-            }
-
-            fprintf(assembly_file, ".global %s\n", iterated_function_key);
-        }
-    }
-
-    fputs("\n", assembly_file);
-    fputs(".data\n", assembly_file);
-    // Write all globals
-    {
-        Nkht_iterator iterator = { 0 };
-        char *iterated_global_key = NULL;
-        Vltl_lang_global *iterated_global_val = NULL;
-        ret = nkht_iterate_start(vltl_global_table_globals, &iterator);
-        if(ret) {
-            goto vltl_compile_file_error;
-        }
-
-        while(
-            nkht_iterate_next(
-                vltl_global_table_globals, &iterator, (void *) &iterated_global_key, &iterated_global_val
-            ) != ENODATA
-        ) {
-            if(iterated_global_key == NULL || iterated_global_val == NULL) {
-                ret = ENOTRECOVERABLE;
-                goto vltl_compile_file_error;
-            }
-
-            fprintf(assembly_file, ".global %s\n", iterated_global_key);
-            fprintf(
-                assembly_file,
-                "%s: .quad %ld\n",
-                iterated_global_key,
-                (int64_t) iterated_global_val->literal->fields[0]
-            );
-        }
-    }
-    */
-
-    // new
     Vltl_compile_line_trio line_trio = { 0 };
     const size_t current_line_cap = 999;
     char *current_line = varena_alloc(&vltl_global_allocator, current_line_cap);
@@ -866,6 +858,7 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
 
             fseek(src_file, line_trio.offset, SEEK_SET);
             fgets(current_line, current_line_cap, src_file);
+vltl_compile_file_debug:
             ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number + line_number_offset++);
             if(ret) {
                 goto vltl_compile_file_error;

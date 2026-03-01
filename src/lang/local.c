@@ -3,7 +3,7 @@
 
 Vltl_lang_local *vltl_lang_local_create(
     const char *name,
-    const Vltl_lang_type *type, Vltl_lang_type_attribute *attributes[9], Vltl_lang_literal *literal
+    const Vltl_lang_type *type, Vltl_lang_type_attribute *attributes[VLTL_LANG_LOCAL_ATTRIBUTES_CAP], Vltl_lang_literal *literal
 ) {
     Vltl_lang_local tmp = { 0 };
     Vltl_lang_local *local_ptr = &tmp;
@@ -26,7 +26,7 @@ Vltl_lang_local *vltl_lang_local_create(
 
 int vltl_lang_local_init(
     Vltl_lang_local **dest, void *memory, const char *name,
-    const Vltl_lang_type *type, Vltl_lang_type_attribute *attributes[9], Vltl_lang_literal *literal
+    const Vltl_lang_type *type, Vltl_lang_type_attribute *attributes[VLTL_LANG_LOCAL_ATTRIBUTES_CAP], Vltl_lang_literal *literal
 ) {
     if(dest == NULL || memory == NULL || type == NULL) {
         return EINVAL;
@@ -39,7 +39,7 @@ int vltl_lang_local_init(
     local->name = name;
     local->type = type;
     if(attributes != NULL) {
-        memcpy(local->attributes, attributes, 9 * sizeof(Vltl_lang_type_attribute *));
+        memcpy(local->attributes, attributes, VLTL_LANG_LOCAL_ATTRIBUTES_CAP * sizeof(Vltl_lang_type_attribute *));
     }
     local->literal = literal;
     local->frame_offset = 0;

@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument
+CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label
 CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-unused-command-line-argument
 DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
 OPTIMIZE=-O0
@@ -10,6 +10,37 @@ LIBRARIES_TEST=-lgtest -lgtest_main
 
 ANALYZE_GCC=-fanalyzer
 ANALYZE_CLANG=-analyze-headers
+
+objs = 
+objs += obj/asm.o
+objs += obj/ast.o
+objs += obj/compile.o
+objs += obj/debug.o
+objs += obj/isa.o
+objs += obj/lang.o
+objs += obj/global.o
+objs += obj/lexer.o
+objs += obj/sast.o
+objs += obj/convert.o
+objs += obj/ds.o
+objs += obj/siphash.o
+
+test_asm_files = 
+test_asm_files += tests/fullpass/manylines_addsub.bin.S
+test_asm_files += tests/fullpass/define_and_use_globals.bin.S
+test_asm_files += tests/fullpass/main_function.bin.S
+test_asm_files += tests/fullpass/modify_globals.bin.S
+test_asm_files += tests/fullpass/return_using_globals_and_constants.bin.S
+test_asm_files += tests/fullpass/simple_locals.bin.S
+test_asm_files += tests/fullpass/simple_globals.bin.S
+test_asm_files += tests/fullpass/simple_constants.bin.S
+test_asm_files += tests/fullpass/several_functions.bin.S
+test_asm_files += tests/fullpass/return_using_subtraction.bin.S
+test_asm_files += tests/fullpass/return_using_multiplication.bin.S
+test_asm_files += tests/fullpass/return_using_division.bin.S
+test_asm_files += tests/fullpass/grouping_beats_multiplication.bin.S
+test_asm_files += tests/fullpass/simple_comma.bin.S
+test_asm_files += tests/fullpass/function_call_one_arg.bin.S
 
 #######################################################################
 #                                                                     #
@@ -28,7 +59,7 @@ clean:
 vltl: src/core.c libvltl.a
 	${CC} ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
 
-libvltl.a: obj/asm.o obj/ast.o obj/compile.o obj/debug.o obj/isa.o obj/lang.o obj/global.o obj/lexer.o obj/sast.o obj/convert.o obj/ds.o obj/siphash.o
+libvltl.a: ${objs}
 	ar rcs libvltl.a obj/*.o
 
 obj/asm.o: src/asm/*.c header/asm/*.h
@@ -67,10 +98,22 @@ obj/ds.o: src/ds/*.c header/ds/*.h
 obj/siphash.o: src/siphash.c header/siphash.h
 	${CC} ${DEBUG} ${CFLAGS} src/siphash.c -c -o obj/siphash.o ${INCLUDE} ${LIBRARIES}
 
-
 ## tests and housekeeping
-test: libvltl.a tests/src/*.cc
-	${CXX} ${DEBUG} ${CXXFLAGS} tests/src/main.cc libvltl.a -o test ${INCLUDE} ${INCLUDE_TEST} ${LIBRARIES} ${LIBRARIES_TEST}
+.PHONY: test
+test: test1_run test2_run
+
+test1: libvltl.a tests/src/*.cc
+	${CXX} ${DEBUG} ${CXXFLAGS} tests/src/test1.cc libvltl.a -o test1 ${INCLUDE} ${INCLUDE_TEST} ${LIBRARIES} ${LIBRARIES_TEST}
+
+test1_run: test1
+	./test1
+
+# g++ must be used here!
+test2: tests/fullpass/several_functions.bin.S tests/src/*.cc
+	g++ ${DEBUG} ${CXXFLAGS} ${test_asm_files} tests/src/test2.cc -o test2 ${INCLUDE} ${INCLUDE_TEST} ${LIBRARIES} ${LIBRARIES_TEST}
+
+test2_run: test2
+	./test2
 
 # kind of a misnomer to test the performance of a "test build" but it's comparative data
 performance: test

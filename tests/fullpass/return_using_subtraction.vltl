@@ -1,0 +1,3 @@
+function return_using_subtraction_main {
+    return 100 - 20 - 20 - 20 - 20 - 10
+}

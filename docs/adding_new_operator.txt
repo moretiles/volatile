@@ -26,5 +26,5 @@ asm_instruction:
 - Update the switch statement in vltl_asm_instruction_amd64_valid.
 - Update the switch statement in vltl_asm_instruction_amd64_detokenize.
 compile:
-- Update the switch statement in vltl_compile_operation_operandify.
 - Update the switch statement in vltl_compile_operation_convert.
+- Update the switch statement in vltl_compile_operation_operandify.

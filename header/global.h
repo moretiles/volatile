@@ -77,7 +77,9 @@ typedef enum vltl_global_register_amd64 {
     VLTL_GLOBAL_REGISTER_AMD64_R12,
     VLTL_GLOBAL_REGISTER_AMD64_R13,
     VLTL_GLOBAL_REGISTER_AMD64_R14,
-    VLTL_GLOBAL_REGISTER_AMD64_R15
+    VLTL_GLOBAL_REGISTER_AMD64_R15,
+
+    VLTL_GLOBAL_REGISTER_AMD64_EOF
 } Vltl_global_register_amd64;
 
 typedef enum vltl_global_register_status {
@@ -179,6 +181,8 @@ extern struct nkht *vltl_global_table_operations;
 extern struct nkht *vltl_global_table_attributes;
 
 // amd64 structs
+extern const struct vltl_global_register vltl_global_registers_amd64[];
+
 extern struct vltl_global_register vltl_global_register_amd64_rax;
 extern struct vltl_global_register vltl_global_register_amd64_rbx;
 extern struct vltl_global_register vltl_global_register_amd64_rcx;

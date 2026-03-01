@@ -1,8 +1,10 @@
-constant the_number_two = 2
-constant the_number_three = 3
-global myglobal_a = one + the_number_two
-global myglobal_b = one - zero + the_number_three
+constant return_using_globals_and_constants_zero = 0
+constant return_using_globals_and_constants_one = 1
+constant return_using_globals_and_constants_the_number_two = 2
+constant return_using_globals_and_constants_the_number_three = 3
+global return_using_globals_and_constants_myglobal_a = return_using_globals_and_constants_one + return_using_globals_and_constants_the_number_two
+global return_using_globals_and_constants_myglobal_b = return_using_globals_and_constants_one - return_using_globals_and_constants_zero + return_using_globals_and_constants_the_number_three
 
-function main {
-    return the_number_two + the_number_three + myglobal_a + myglobal_b
+function return_using_globals_and_constants_main {
+    return return_using_globals_and_constants_the_number_two + return_using_globals_and_constants_the_number_three + return_using_globals_and_constants_myglobal_a + return_using_globals_and_constants_myglobal_b
 }

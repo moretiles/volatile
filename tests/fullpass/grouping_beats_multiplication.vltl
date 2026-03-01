@@ -1,0 +1,3 @@
+function grouping_beats_multiplication_main {
+    return 3 * (4 + 1)
+}

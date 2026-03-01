@@ -29,8 +29,8 @@ Nkht *vltl_global_table_functions = NULL;
 
 Vltl_global_register vltl_global_register_amd64_rax = {
     .isa = VLTL_ISA_AMD64,
-    .status_current = VLTL_GLOBAL_REGISTER_STATUS_RESERVED,
-    .status_default = VLTL_GLOBAL_REGISTER_STATUS_RESERVED,
+    .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+    .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RAX
 };
 
@@ -49,8 +49,8 @@ Vltl_global_register vltl_global_register_amd64_rcx = {
 };
 Vltl_global_register vltl_global_register_amd64_rdx = {
     .isa = VLTL_ISA_AMD64,
-    .status_current = VLTL_GLOBAL_REGISTER_STATUS_RESERVED,
-    .status_default = VLTL_GLOBAL_REGISTER_STATUS_RESERVED,
+    .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+    .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RDX
 };
 
@@ -135,6 +135,116 @@ Vltl_global_register vltl_global_register_amd64_r15 = {
     .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
 };
 
+const struct vltl_global_register vltl_global_registers_amd64[] = {
+    [VLTL_GLOBAL_REGISTER_AMD64_RAX] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RAX
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_RBX] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RBX
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_RCX] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RCX
+    },
+    [VLTL_GLOBAL_REGISTER_AMD64_RDX] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RDX
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_RDI] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RDI
+    },
+    [VLTL_GLOBAL_REGISTER_AMD64_RSI] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RSI
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_RBP] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_INUSE,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_INUSE,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RBP
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_RSP] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_INUSE,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_INUSE,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_RSP
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R8] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R8
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R9] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R9
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R10] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R10
+    },
+    [VLTL_GLOBAL_REGISTER_AMD64_R11] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R11
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R12] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R12
+    },
+    [VLTL_GLOBAL_REGISTER_AMD64_R13] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R13
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R14] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R14
+    },
+
+    [VLTL_GLOBAL_REGISTER_AMD64_R15] = {
+        .isa = VLTL_ISA_AMD64,
+        .status_current = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .status_default = VLTL_GLOBAL_REGISTER_STATUS_UNUSED,
+        .as_amd64 = VLTL_GLOBAL_REGISTER_AMD64_R15
+    }
+};
+
 __attribute__((constructor)) int vltl_global_init(void) {
     vltl_global_config_init();
     vltl_global_context_init();
@@ -156,6 +266,9 @@ int vltl_global_config_init(void) {
 }
 
 int vltl_global_context_init(void) {
+    // vltl_global_context is zero-initialized so this is safe for the first and all subsequent invocations
+    vltl_lang_function_deinit(vltl_global_context.function);
+
     vltl_global_context = (Vltl_global_context) {
         .filename = "test.vltl",
         .function = NULL,
@@ -222,8 +335,6 @@ int vltl_global_table_init(void) {
 }
 
 int vltl_global_table_constants_init(void) {
-    Vltl_lang_constant *current_constant_ptr = NULL;
-
     if(vltl_global_table_constants != NULL) {
         nkht_destroy(vltl_global_table_constants);
         vltl_global_table_constants = NULL;
@@ -234,16 +345,10 @@ int vltl_global_table_constants_init(void) {
         exit(ENOMEM);
     }
 
-    current_constant_ptr = &vltl_lang_constant_zero;
-    assert(0 == nkht_set(vltl_global_table_constants, current_constant_ptr->name, &current_constant_ptr));
-    current_constant_ptr = &vltl_lang_constant_one;
-    assert(0 == nkht_set(vltl_global_table_constants, current_constant_ptr->name, &current_constant_ptr));
     return 0;
 }
 
 int vltl_global_table_globals_init(void) {
-    Vltl_lang_global *current_global_ptr = NULL;
-
     if(vltl_global_table_globals != NULL) {
         nkht_destroy(vltl_global_table_globals);
         vltl_global_table_globals = NULL;
@@ -254,10 +359,6 @@ int vltl_global_table_globals_init(void) {
         exit(ENOMEM);
     }
 
-    current_global_ptr = &vltl_lang_global_a;
-    assert(0 == nkht_set(vltl_global_table_globals, current_global_ptr->name, &current_global_ptr));
-    current_global_ptr = &vltl_lang_global_b;
-    assert(0 == nkht_set(vltl_global_table_globals, current_global_ptr->name, &current_global_ptr));
     return 0;
 }
 
@@ -299,8 +400,8 @@ int vltl_global_table_types_init(void) {
     return 0;
 }
 
-void vltl_global_table_operations_init_helper(const char *key, Vltl_lang_operation *operation) {
-    assert(0 == nkht_set(vltl_global_table_operations, key, &operation));
+void vltl_global_table_operations_init_helper(Vltl_lang_operation *operation) {
+    assert(0 == nkht_set(vltl_global_table_operations, operation->name, &operation));
 }
 
 int vltl_global_table_operations_init(void) {
@@ -314,16 +415,21 @@ int vltl_global_table_operations_init(void) {
         exit(ENOMEM);
     }
 
-    vltl_global_table_operations_init_helper(vltl_lang_operation_equals.name, &vltl_lang_operation_equals);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_add.name, &vltl_lang_operation_add);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_sub.name, &vltl_lang_operation_sub);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_global.name, &vltl_lang_operation_global);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_constant.name, &vltl_lang_operation_constant);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_local.name, &vltl_lang_operation_local);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_function.name, &vltl_lang_operation_function);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_body_open.name, &vltl_lang_operation_body_open);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_body_close.name, &vltl_lang_operation_body_close);
-    vltl_global_table_operations_init_helper(vltl_lang_operation_return.name, &vltl_lang_operation_return);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_equals);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_add);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_sub);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_mul);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_div);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_comma);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_grouping_open);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_grouping_close);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_global);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_constant);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_local);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_function);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_body_open);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_body_close);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_return);
 
     return 0;
 }
@@ -387,8 +493,10 @@ int vltl_global_registers_init_amd64(void) {
     vltl_global_registers_insert(&vltl_global_register_amd64_r9);
     vltl_global_registers_insert(&vltl_global_register_amd64_r8);
     vltl_global_registers_insert(&vltl_global_register_amd64_rcx);
+    vltl_global_registers_insert(&vltl_global_register_amd64_rdx);
     vltl_global_registers_insert(&vltl_global_register_amd64_rsi);
     vltl_global_registers_insert(&vltl_global_register_amd64_rdi);
+    vltl_global_registers_insert(&vltl_global_register_amd64_rax);
 
     // unused, high cost
     vltl_global_registers_insert(&vltl_global_register_amd64_r15);
@@ -396,10 +504,6 @@ int vltl_global_registers_init_amd64(void) {
     vltl_global_registers_insert(&vltl_global_register_amd64_r13);
     vltl_global_registers_insert(&vltl_global_register_amd64_r12);
     vltl_global_registers_insert(&vltl_global_register_amd64_rbx);
-
-    // reserved
-    vltl_global_registers_insert(&vltl_global_register_amd64_rax);
-    vltl_global_registers_insert(&vltl_global_register_amd64_rdx);
 
     // in-use
     vltl_global_registers_insert(&vltl_global_register_amd64_rbp);

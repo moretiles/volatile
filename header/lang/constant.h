@@ -6,20 +6,15 @@
 extern "C" {
 #endif
 
+#define VLTL_LANG_CONSTANT_ATTRIBUTE_CAP (9LU)
+
 typedef struct vltl_lang_constant {
     const char *name;
 
     const Vltl_lang_type *type;
-    Vltl_lang_type_attribute *attributes[9];
+    Vltl_lang_type_attribute *attributes[VLTL_LANG_CONSTANT_ATTRIBUTE_CAP];
     Vltl_lang_literal *literal;
 } Vltl_lang_constant;
-
-// temporary constant
-extern struct vltl_lang_literal vltl_lang_constant_zero_literal;
-extern struct vltl_lang_literal vltl_lang_constant_one_literal;
-
-extern struct vltl_lang_constant vltl_lang_constant_zero;
-extern struct vltl_lang_constant vltl_lang_constant_one;
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,7 @@
 #include <lang/local.h>
 #include <lang/global.h>
 #include <lang/constant.h>
+#include <lang/function.h>
 
 #include <stddef.h>
 
@@ -22,6 +23,7 @@ typedef enum vltl_lang_token_kind {
     VLTL_LANG_TOKEN_KIND_CONSTANT,
     VLTL_LANG_TOKEN_KIND_GLOBAL,
     VLTL_LANG_TOKEN_KIND_LOCAL,
+    VLTL_LANG_TOKEN_KIND_FUNCTION,
     VLTL_LANG_TOKEN_KIND_ATTRIBUTE,
     VLTL_LANG_TOKEN_KIND_OPERATION,
     VLTL_LANG_TOKEN_KIND_TYPE
@@ -38,6 +40,7 @@ typedef struct vltl_lang_token {
         Vltl_lang_constant *constant;
         Vltl_lang_global *global;
         Vltl_lang_local *local;
+        Vltl_lang_function *function;
     };
 } Vltl_lang_token;
 

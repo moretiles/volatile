@@ -1,6 +1,6 @@
-global def = 67
-global ghi = 313 - 203 + 111
+global define_and_use_globals_def = 67
+global define_and_use_globals_ghi = 313 - 203 + 111
 
-function main {
-    return ghi + ghi - def
+function define_and_use_globals_main {
+    return define_and_use_globals_ghi + define_and_use_globals_ghi - define_and_use_globals_def
 }

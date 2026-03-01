@@ -1,0 +1,3 @@
+function return_using_division_main {
+    return 400 / 100 + 1250 / 50 + 1880 / 40 * 100 / 10 + 100 / 100
+}

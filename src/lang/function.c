@@ -19,6 +19,7 @@ int vltl_lang_function_init(Vltl_lang_function *dest, const char *name) {
     }
     dest->stack_frame_size = 0;
     dest->stack_frame_cap = 0;
+    dest->num_tmp_variables = 0;
     // TODO: Store registers used by function in serious way
     //   Will require that, for the current ISA, enqueue every global register as a key with its value set to false
     dest->registers_used = vht_create(sizeof(Vltl_global_register *), sizeof(bool));
@@ -27,6 +28,19 @@ int vltl_lang_function_init(Vltl_lang_function *dest, const char *name) {
     }
 
     return 0;
+}
+
+void vltl_lang_function_deinit(Vltl_lang_function *function) {
+    if(function == NULL) {
+        return;
+    }
+
+    nkht_destroy(function->locals);
+    function->locals = NULL;
+    vht_destroy(function->registers_used);
+    function->registers_used = NULL;
+
+    return;
 }
 
 int vltl_lang_function_local_get(Vltl_lang_local **dest, Vltl_lang_function *function, const char *name) {

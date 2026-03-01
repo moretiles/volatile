@@ -18,6 +18,36 @@ Vltl_lang_operation vltl_lang_operation_sub = {
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
+Vltl_lang_operation vltl_lang_operation_mul = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_MUL,
+    .name = "*",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_div = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_DIV,
+    .name = "/",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_comma = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_COMMA,
+    .name = ",",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_grouping_open = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_GROUPING_OPEN,
+    .name = "(",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_grouping_close = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE,
+    .name = ")",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
 Vltl_lang_operation vltl_lang_operation_global = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_GLOBAL,
     .name = "global",

@@ -1,5 +1,8 @@
-function main {
-    3 - 1 + zero
-    zero + zero + zero + one
-    return one + zero - 0
+constant simple_constants_zero = 0
+constant simple_constants_one = 1
+
+function simple_constants_main {
+    3 - 1 + simple_constants_zero
+    simple_constants_zero + simple_constants_zero + simple_constants_zero + simple_constants_one
+    return simple_constants_one + simple_constants_zero - 0
 }

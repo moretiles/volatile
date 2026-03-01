@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ds/vstack.h>
+#include <ds/btrc.h>
 
 #include <stdio.h>
 #include <assert.h>
@@ -39,8 +40,10 @@ int iestack_pop(Iestack *stack, Iestack_error *dest_error);
 #define IESTACK_PUSHF(stack, error_code, fstring, ...) \
 { \
     char buf_tmp___[IESTACK_ERROR_STRLEN]; \
+    size_t printed_len___ = 0; \
+    int ret___ = 0; \
     buf_tmp___[0] = 0; \
-    snprintf(buf_tmp___, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
+    BTRC_SNPRINTF(&ret___, &printed_len___, buf_tmp___, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
     IESTACK_PUSH(stack, error_code, buf_tmp___); \
 }
 #define IESTACK_RETURN(stack, error_code, string) IESTACK_PUSH(stack, error_code, string); \

@@ -1,3 +1,4 @@
+#include <ds/btrc.h>
 #include <ds/iestack.h>
 #include <global.h>
 #include <ast.h>
@@ -98,6 +99,8 @@ int vltl_ast_operation_precedence_order_determine(
     case VLTL_AST_OPERATION_PRECEDENCE_16:
     case VLTL_AST_OPERATION_PRECEDENCE_17:
     case VLTL_AST_OPERATION_PRECEDENCE_18:
+        *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_LEFT_TO_RIGHT;
+        break;
     case VLTL_AST_OPERATION_PRECEDENCE_19:
     case VLTL_AST_OPERATION_PRECEDENCE_20:
         *dest = VLTL_AST_OPERATION_PRECEDENCE_ORDER_RIGHT_TO_LEFT;
@@ -121,7 +124,7 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_0;
         break;
-    case VLTL_AST_OPERATION_KIND_ENCLOSE:
+    case VLTL_AST_OPERATION_KIND_CALL:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_1;
         break;
     case VLTL_AST_OPERATION_KIND_MUL:
@@ -134,6 +137,15 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_14;
+        break;
+    case VLTL_AST_OPERATION_KIND_COMMA:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_15;
+        break;
+    case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_17;
+        break;
+    case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_18;
         break;
     case VLTL_AST_OPERATION_KIND_RETURN:
     case VLTL_AST_OPERATION_KIND_CONSTANT:
@@ -177,8 +189,14 @@ int vltl_ast_operation_kind_detokenize(
     }
 
     switch(src) {
-    case VLTL_AST_OPERATION_KIND_ENCLOSE:
-        src_string = "()";
+    case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
+        src_string = "(";
+        break;
+    case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
+        src_string = ")";
+        break;
+    case VLTL_AST_OPERATION_KIND_CALL:
+        src_string = "CALL";
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
         src_string = "+";
@@ -191,6 +209,9 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_DIV:
         src_string = "/";
+        break;
+    case VLTL_AST_OPERATION_KIND_COMMA:
+        src_string = ",";
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
         src_string = "=";
@@ -244,7 +265,7 @@ int vltl_ast_operation_detokenize(char *dest, size_t dest_cap, size_t *dest_len,
     size_t buf_len = 0;
     char buf_for_kind[buf_cap];
     char buf_for_evaluates_to[buf_cap];
-    int dest_len_helper;
+    int dest_len_helper = 0;
     if(dest == NULL || dest_cap == 0) {
         return EINVAL;
     }
@@ -263,13 +284,13 @@ int vltl_ast_operation_detokenize(char *dest, size_t dest_cap, size_t *dest_len,
         }
     }
 
-    dest_len_helper = snprintf(
-                          dest, dest_cap, "%s\\n%s\\n%s",
-                          buf_for_kind, buf_for_evaluates_to,
-                          src.result_type != NULL ? src.result_type->name : "NULL"
-                      );
-    if(dest_len_helper < 0) {
-        return ENOTRECOVERABLE;
+    BTRC_SNPRINTF(&ret, &dest_len_helper,
+                  dest, dest_cap, "%s\\n%s\\n%s",
+                  buf_for_kind, buf_for_evaluates_to,
+                  src.result_type != NULL ? src.result_type->name : "NULL"
+                 );
+    if(ret) {
+        return ret;
     }
 
     *dest_len = (size_t) dest_len_helper;
@@ -304,37 +325,38 @@ static int vltl_ast_tree_detokenize_recurse(
         return ret;
     }
 
-    dest_len_helper2 = snprintf(
-                           &(dest[dest_offset]), dest_cap - dest_offset,
-                           "node_%lu [label=\"", *monotonic_index
-                       );
-    if(dest_len_helper2 < 0) {
-        return ENOTRECOVERABLE;
+    BTRC_SNPRINTF(&ret, &dest_len_helper2,
+                  &(dest[dest_offset]), dest_cap - dest_offset,
+                  "node_%lu [label=\"", *monotonic_index
+                 );
+    if(ret) {
+        return ret;
     }
     dest_offset += (size_t) dest_len_helper2;
     dest_cap -= (size_t) dest_len_helper2;
 
-    ret = vltl_ast_operation_detokenize(&(dest[dest_offset]), dest_cap - dest_offset, &dest_len_helper, operation);
+    ret = vltl_ast_operation_detokenize(&(dest[dest_offset]), dest_cap, &dest_len_helper, operation);
     if(ret != 0) {
         return ret;
     }
     dest_offset += dest_len_helper;
     dest_cap -= dest_len_helper;
 
-    dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap - dest_offset, "\"];\n");
-    if(dest_len_helper2 < 0) {
-        return ENOTRECOVERABLE;
+    ret = btrc_strncpy(&dest_len_helper, &(dest[dest_offset]), "\"];\n", dest_cap);
+    if(ret) {
+        return ret;
     }
-    dest_offset += (size_t) dest_len_helper2;
-    dest_cap -= (size_t) dest_len_helper2;
+    dest_offset += dest_len_helper;
+    dest_cap -= dest_len_helper;
 
     if(initial_value_of_monotonic_index == parent_index) {
         // this is the root node, don't draw vector
     } else {
-        dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap, "node_%lu -> node_%lu;\n", parent_index, *monotonic_index);
-        if(dest_len_helper2 < 0) {
-            return ENOTRECOVERABLE;
+        BTRC_SNPRINTF(&ret, &dest_len_helper2, &(dest[dest_offset]), dest_cap, "node_%lu -> node_%lu;\n", parent_index, *monotonic_index);
+        if(ret) {
+            return ret;
         }
+
         dest_offset += (size_t) dest_len_helper2;
         dest_cap -= (size_t) dest_len_helper2;
     }
@@ -347,7 +369,7 @@ static int vltl_ast_tree_detokenize_recurse(
 
         ret = vltl_ast_tree_detokenize_recurse(
                   &(dest[dest_offset]),
-                  dest_cap - dest_offset,
+                  dest_cap,
                   &dest_len_helper,
                   *(operation.arguments[i]),
                   monotonic_index,
@@ -367,17 +389,14 @@ static int vltl_ast_tree_detokenize_recurse(
 
 int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, const Vltl_ast_tree src) {
     size_t dest_offset = 0, dest_len_helper = 0, monotonic_index = 0;
-    int dest_len_helper2 = 0;
     int ret = 0;
 
-    dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap, "digraph ast_tree {\n");
-    if(dest_len_helper2 < 0) {
-        ret = ENOTRECOVERABLE;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling snprintf!");
-        return ret;
+    ret = btrc_strncpy(&dest_len_helper, &(dest[dest_offset]), "digraph ast_tree {\n", dest_cap);
+    if(ret) {
+        IESTACK_RETURN(&vltl_global_errors, ret, "Unexpected failure copying string!");
     }
-    dest_offset += (size_t) dest_len_helper2;
-    dest_cap -= (size_t) dest_len_helper2;
+    dest_offset += dest_len_helper;
+    dest_cap -= dest_len_helper;
 
     size_t initial_value_of_monotonic_index = 0;
     ret = vltl_ast_tree_detokenize_recurse(
@@ -395,14 +414,12 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
     dest_offset += dest_len_helper;
     dest_cap -= dest_len_helper;
 
-    dest_len_helper2 = snprintf(&(dest[dest_offset]), dest_cap, "}\n");
-    if(dest_len_helper2 < 0) {
-        ret = ENOTRECOVERABLE;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling snprintf!");
-        return ret;
+    ret = btrc_strncpy(&dest_len_helper, &(dest[dest_offset]), "}\n", dest_cap);
+    if(ret) {
+        IESTACK_RETURN(&vltl_global_errors, ret, "Unexpected failure copying string!");
     }
-    dest_offset += (size_t) dest_len_helper2;
-    dest_cap -= (size_t) dest_len_helper2;
+    dest_offset += dest_len_helper;
+    dest_cap -= dest_len_helper;
 
     *dest_len = dest_offset + 1;
     return 0;
@@ -410,12 +427,15 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
 
 bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind) {
     switch(operation_kind) {
-    case VLTL_AST_OPERATION_KIND_ENCLOSE:
+    case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
+    case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_AST_OPERATION_KIND_CALL:
     case VLTL_AST_OPERATION_KIND_ADD:
+    case VLTL_AST_OPERATION_KIND_SUB:
     case VLTL_AST_OPERATION_KIND_MUL:
     case VLTL_AST_OPERATION_KIND_DIV:
+    case VLTL_AST_OPERATION_KIND_COMMA:
     case VLTL_AST_OPERATION_KIND_EVAL:
-    case VLTL_AST_OPERATION_KIND_SUB:
     case VLTL_AST_OPERATION_KIND_EQUALS:
     case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_GLOBAL:
@@ -452,16 +472,28 @@ size_t vltl_ast_operation_argc(const Vltl_ast_operation operation) {
 
 size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind) {
     switch(operation_kind) {
-    case VLTL_AST_OPERATION_KIND_ENCLOSE:
+    case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CALL:
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_SUB:
         return 2;
         break;
     case VLTL_AST_OPERATION_KIND_MUL:
         return 2;
         break;
     case VLTL_AST_OPERATION_KIND_DIV:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_COMMA:
         return 2;
         break;
     case VLTL_AST_OPERATION_KIND_LOCAL:
@@ -478,9 +510,6 @@ size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind
         break;
     case VLTL_AST_OPERATION_KIND_EVAL:
         return 0;
-        break;
-    case VLTL_AST_OPERATION_KIND_SUB:
-        return 2;
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
         return 2;
@@ -745,6 +774,21 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             possible_target != NULL && possible_target->parent != NULL;
             possible_target = possible_target->parent
        ) {
+        if(
+            pushed->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN &&
+            vltl_ast_operation_argc(*possible_target) < vltl_ast_operation_kind_argc(possible_target->kind)
+        ) {
+            ret = vltl_ast_operation_insert(tree, possible_target, pushed, vltl_ast_operation_argc(*possible_target));
+            if(ret) {
+                IESTACK_PUSH(&vltl_global_errors, ret, "Error trying to insert tree grouping_open!");
+                return ret;
+            }
+            tree->last = pushed;
+
+            return 0;
+            break;
+        }
+
         Vltl_ast_operation_precedence parent_precedence = {0};
         ret = vltl_ast_operation_precedence_determine(&pushed_precedence, *pushed);
         if(ret) {
@@ -852,6 +896,18 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             // not implemented yet
             return ENOTRECOVERABLE;
             break;
+        case VLTL_LANG_TOKEN_KIND_FUNCTION:
+            operation_kind = VLTL_AST_OPERATION_KIND_CALL;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_FUNCTION;
+            evaluates_to->function = src->tokens[i].token.function;
+            result_type = &vltl_lang_type_long;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+            break;
         case VLTL_LANG_TOKEN_KIND_CONSTANT:
             operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
             evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
@@ -956,6 +1012,24 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                     return ret;
                 }
                 break;
+            case VLTL_LANG_OPERATION_KIND_GROUPING_OPEN:
+                operation_kind = VLTL_AST_OPERATION_KIND_GROUPING_OPEN;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE:
+                operation_kind = VLTL_AST_OPERATION_KIND_GROUPING_CLOSE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
             case VLTL_LANG_OPERATION_KIND_ADD:
                 operation_kind = VLTL_AST_OPERATION_KIND_ADD;
 
@@ -967,6 +1041,33 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 break;
             case VLTL_LANG_OPERATION_KIND_SUB:
                 operation_kind = VLTL_AST_OPERATION_KIND_SUB;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_MUL:
+                operation_kind = VLTL_AST_OPERATION_KIND_MUL;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_DIV:
+                operation_kind = VLTL_AST_OPERATION_KIND_DIV;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_COMMA:
+                operation_kind = VLTL_AST_OPERATION_KIND_COMMA;
 
                 result_type = &vltl_lang_type_long;
                 ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
@@ -1008,8 +1109,7 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
             break;
         default:
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown VLTL_LANG_TOKEN_KIND!");
-            return EINVAL;
+            IESTACK_RETURN(&vltl_global_errors, EINVAL, "Unknown VLTL_LANG_TOKEN_KIND!");
             break;
         }
 

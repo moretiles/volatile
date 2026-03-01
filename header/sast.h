@@ -2,6 +2,7 @@
 
 #include <ds/vstack.h>
 #include <asm/operand.h>
+#include <asm/register.h>
 #include <ast.h>
 #include <global.h>
 
@@ -19,17 +20,26 @@ typedef enum vltl_sast_operation_kind {
     VLTL_SAST_OPERATION_KIND_INVALID,
 
     VLTL_SAST_OPERATION_KIND_EVAL,
+    VLTL_SAST_OPERATION_KIND_CALL,
+    VLTL_SAST_OPERATION_KIND_GROUPING_OPEN,
+    VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE,
     VLTL_SAST_OPERATION_KIND_LOAD,
     VLTL_SAST_OPERATION_KIND_STORE,
     VLTL_SAST_OPERATION_KIND_ADD,
     VLTL_SAST_OPERATION_KIND_SUB,
+    VLTL_SAST_OPERATION_KIND_MUL,
+    VLTL_SAST_OPERATION_KIND_DIV,
+    VLTL_SAST_OPERATION_KIND_COMMA,
+    VLTL_SAST_OPERATION_KIND_CSV,
     VLTL_SAST_OPERATION_KIND_GLOBAL,
     VLTL_SAST_OPERATION_KIND_CONSTANT,
     VLTL_SAST_OPERATION_KIND_LOCAL,
     VLTL_SAST_OPERATION_KIND_FUNCTION,
     VLTL_SAST_OPERATION_KIND_BODY_OPEN,
     VLTL_SAST_OPERATION_KIND_BODY_CLOSE,
-    VLTL_SAST_OPERATION_KIND_RETURN
+    VLTL_SAST_OPERATION_KIND_RETURN,
+
+    VLTL_SAST_OPERATION_KIND_EOF
 } Vltl_sast_operation_kind;
 
 typedef struct vltl_sast_operation {
@@ -44,6 +54,8 @@ typedef struct vltl_sast_operation {
             struct vltl_sast_operation *rchild;
         };
     };
+    struct vltl_sast_operation *before[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
+    struct vltl_sast_operation *after[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
     // pointer to the node on the ast tree representing this operation more abstractly
     struct vltl_ast_operation *equivalent;
 
@@ -67,6 +79,29 @@ int vltl_sast_operation_kind_detokenize(
     const Vltl_sast_operation_kind src
 );
 
+// tbd
+extern struct vltl_sast_operation vltl_sast_operation_tbd;
+
+// amd64 structs
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rax;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rbx;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rcx;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rdx;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rdi;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rsi;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rbp;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_rsp;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r8;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r9;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r10;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r11;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r12;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r13;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r14;
+extern struct vltl_sast_operation vltl_sast_operation_amd64_r15;
+
+extern const Vltl_asm_register_amd64 vltl_sast_operations_amd64_required_table[VLTL_SAST_OPERATION_KIND_EOF][VLTL_ASM_REGISTER_AMD64_EOF];
+
 // Stringify the operation_kind in src and write it to dest failing if dest_cap is too small to write everything.
 // The number of bytes written, including the null byte, will be placed in *(dest_len)
 int vltl_sast_operation_detokenize(char *dest, size_t dest_cap, size_t *dest_len, const Vltl_sast_operation src);
@@ -84,7 +119,25 @@ bool vltl_sast_operation_incomplete(const Vltl_sast_operation operation);
 size_t vltl_sast_operation_kind_argc(const Vltl_sast_operation_kind operation_kind);
 
 // Discover how many arguments an operation currently holds
-size_t vltl_sast_operation_argc(const Vltl_sast_operation operation);
+size_t vltl_sast_operation_args_argc(const Vltl_sast_operation operation);
+
+// Discover how many before operations an operation currently holds
+size_t vltl_sast_operation_before_argc(const Vltl_sast_operation operation);
+
+// Add new before operation
+int vltl_sast_operation_before_append(Vltl_sast_operation *operation, Vltl_sast_operation *add_this);
+
+// Clear before operations
+int vltl_sast_operation_before_clear(Vltl_sast_operation *operation);
+
+// Discover how many after operations an operation currently holds
+size_t vltl_sast_operation_after_argc(const Vltl_sast_operation operation);
+
+// Add new after operation
+int vltl_sast_operation_after_append(Vltl_sast_operation *operation, Vltl_sast_operation *add_this);
+
+// Clear after operations
+int vltl_sast_operation_after_clear(Vltl_sast_operation *operation);
 
 // Initialize sast_operation by zeroing out and then setting kind, evaluates_to, and destination
 int vltl_sast_operation_init(
@@ -121,6 +174,35 @@ int vltl_sast_operation_adopt(
     Vltl_sast_operation *adopt_this
 );
 
+// Protect protect_this from other operations using identical destination operand
+int vltl_sast_operation_protect(
+    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_asm_operand *from_that
+);
+
+// Protect protect_this from parents and lower-indexed siblings using identical destination operand
+int vltl_sast_operation_protect_le(
+    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_asm_operand *from_that
+);
+
+// Protect protect_this from parents and higher-indexed siblings using identical destination operand
+int vltl_sast_operation_protect_ge(
+    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this
+);
+
+// Mark all in-use registers for a given tree operation
+int vltl_sast_tree_registers_mark(Vltl_sast_tree *tree, Vltl_sast_operation *operation);
+
+// Use specific register if reserve_this not NULL, otherwise, lowest cost register
+int vltl_sast_tree_registers_use(
+    Vltl_sast_tree *tree, Vltl_asm_operand *use_this, Vltl_sast_operation *for_new_child_of, bool any
+);
+
+// Recursive helper function
+int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation);
+
+// Reshape a valid subtree into something that can actually be compiled.
+int vltl_sast_tree_reshape(Vltl_sast_tree *tree);
+
 // Recursive helper function
 int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation);
 
@@ -143,6 +225,7 @@ int vltl_sast_tree_detokenize(
 // Important to note that memory will be allocated for child nodes, however, equivalent is used to store the root.
 // Equivalent is incomplete so operations at or below it requiring args are pushed to insert_below_next.
 int vltl_sast_operation_convert(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 );
 
@@ -151,27 +234,6 @@ int vltl_sast_operation_convert(
 //   (1) Forward breadth-first-search of src inserting subtree composed of many sast_operation below parent.
 //   (2) Backwards breadth-first-search of src connecting subtrees to complete them (also try to optimize).
 int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src);
-
-// tbd
-extern struct vltl_sast_operation vltl_sast_operation_tbd;
-
-// amd64 structs
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rax;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rbx;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rcx;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rdx;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rdi;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rsi;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rbp;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_rsp;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r8;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r9;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r10;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r11;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r12;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r13;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r14;
-extern struct vltl_sast_operation vltl_sast_operation_amd64_r15;
 
 #ifdef __cplusplus
 }

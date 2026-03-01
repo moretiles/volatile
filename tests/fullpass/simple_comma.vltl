@@ -1,0 +1,8 @@
+constant simple_comma_whatever = 99
+
+function simple_comma_main {
+    local a = 5
+
+    1, simple_comma_whatever * 3, 15 / a + 1
+    return 3
+}

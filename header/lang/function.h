@@ -9,6 +9,10 @@
 extern "C" {
 #endif
 
+#define VLTL_LANG_FUNCTION_RETURN_TYPE_ATTRIBUTES_CAP (9LU)
+#define VLTL_LANG_FUNCTION_PARAMETERS_CAP (9LU)
+#define VLTL_LANG_FUNCTION_PARAMETERS_ATTRIBUTES_CAP (9LU)
+
 // status is incomplete before the function signature has been scanned
 // status is signature after the function signature has been scanned
 // status is complete after the function body has been scanned
@@ -28,19 +32,21 @@ typedef struct vltl_lang_function {
     // used during first pass that covers only function signature
     const char *name;
     const Vltl_lang_type *return_type;
-    const Vltl_lang_type_attribute *return_type_attributes[9];
+    const Vltl_lang_type_attribute *return_type_attributes[VLTL_LANG_FUNCTION_PARAMETERS_CAP];
     size_t expected_argc;
-    const Vltl_lang_type *parameters[9];
-    const Vltl_lang_type_attribute *parameter_attributes[9][9];
+    const Vltl_lang_type *parameters[VLTL_LANG_FUNCTION_PARAMETERS_CAP];
+    const Vltl_lang_type_attribute *parameter_attributes[VLTL_LANG_FUNCTION_PARAMETERS_CAP][VLTL_LANG_FUNCTION_PARAMETERS_ATTRIBUTES_CAP];
 
     // used during second pass that considers function body
     Nkht *locals;
     size_t stack_frame_size;
     size_t stack_frame_cap;
+    size_t num_tmp_variables;
     Vht *registers_used;
 } Vltl_lang_function;
 
 int vltl_lang_function_init(Vltl_lang_function *dest, const char *name);
+void vltl_lang_function_deinit(Vltl_lang_function *function);
 int vltl_lang_function_local_get(Vltl_lang_local **dest, Vltl_lang_function *function, const char *name);
 int vltl_lang_function_local_set(
     Vltl_lang_function *function, const char *name, const Vltl_lang_type *type,

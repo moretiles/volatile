@@ -24,36 +24,6 @@ typedef struct vltl_compile_line_trio_queue {
     Vqueue *trio_queue;
 } Vltl_compile_line_trio_queue;
 
-typedef struct vltl_compile_line {
-    Vltl_lexer_line lexer_line;
-    Vltl_ast_tree ast_tree;
-    Vltl_sast_tree sast_tree;
-} Vltl_compile_line;
-
-typedef struct vltl_compile_file {
-    // src_filename names the file containing VLTL source code.
-    char src_filename[99];
-    FILE *src_file;
-
-    // new
-    // queue of (const char *) that are lines sorted by the order in which they appear, organized by topic
-    Vqueue *import_lines;
-    Vqueue *struct_lines;
-    Vqueue *constant_lines;
-    Vqueue *global_lines;
-
-    // queue of vltl_lexer_function structs sorted by the order in which they appear
-    Vqueue *function_bodies;
-
-    // tmp_filename names the file assembly instructions are written to, before the gnu assembler is invoked.
-    char tmp_filename[99];
-    FILE *tmp_file;
-
-    // dest_filename names the file that is the final, produced binary.
-    char dest_filename[99];
-    FILE *dest_file;
-} Vltl_compile_file;
-
 size_t vltl_compile_line_trio_queue_advise(size_t num_elems);
 int vltl_compile_line_trio_queue_init(Vltl_compile_line_trio_queue **dest, void *memory, size_t num_elems);
 int vltl_compile_line_trio_queue_enqueue(Vltl_compile_line_trio_queue *queue, Vltl_compile_line_trio *src);
