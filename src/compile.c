@@ -98,22 +98,37 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         return EINVAL;
     }
 
+    // only amd64 supported for now
+    if(vltl_global_config.isa != VLTL_ISA_AMD64) {
+        ret = ENOTRECOVERABLE;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
+        return ret;
+    }
+
+
     if(!vltl_sast_operation_valid(*src)) {
         ret = EINVAL;
         IESTACK_PUSH(&vltl_global_errors, ret, "src is invalid!");
         return EINVAL;
     }
 
+    // does anything special need to be done?
+    /*
+    switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_CALL:
+        VLTL_EXPECT(
+            vltl_compile_operation_convert_call(dest, src),
+            "Helper function vltl_compile_operation_convert_call produced strange error!"
+        );
+        break;
+    default:
+        break;
+    }
+    */
+
     // handle instruction
     Vltl_asm_instruction as_instruction = { 0 };
     {
-        // only amd64 supported for now
-        if(vltl_global_config.isa != VLTL_ISA_AMD64) {
-            ret = ENOTRECOVERABLE;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
-            return ret;
-        }
-
         switch(src->kind) {
         case VLTL_SAST_OPERATION_KIND_CALL:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
@@ -207,9 +222,9 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
             never_print_this_argument[1] = true;
             break;
         case VLTL_SAST_OPERATION_KIND_CSV:
-            never_print_this_argument[0] = true;
-            never_print_this_argument[1] = true;
-            never_print_this_argument[2] = true;
+            for(size_t i = 0; i < VLTL_SAST_OPERATION_ARGUMENTS_MAX; i++) {
+                never_print_this_argument[i] = true;
+            }
             break;
         case VLTL_SAST_OPERATION_KIND_RETURN:
             never_print_this_argument[0] = true;
@@ -358,7 +373,94 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         fputs("\tpush %r14\n", dest);
         fputs("\tpush %r15\n", dest);
         fputs("\tmov %rbp, %rsp\n", dest);
-        fputs("\tsub %rsp, 0x80\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+
+        if(src->root->rchild && src->root->rchild->lchild) {
+            switch(src->root->rchild->lchild->kind) {
+            case(VLTL_SAST_OPERATION_KIND_TYPEAS):
+                ;
+                Vltl_sast_operation *typeas_operation = src->root->rchild->lchild;
+
+                Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+                if(created_literal == NULL) {
+                    ret = ENOMEM;
+                    IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+                    return ret;
+                }
+                *created_literal = (Vltl_lang_literal) {
+                    .name = NULL,
+                    .type = &vltl_lang_type_long,
+                    .attributes = { 0 },
+                    .fields = { (void *) 0 }
+                };
+
+                if(typeas_operation->lchild->evaluates_to.as_unknown == NULL) {
+                    ret = EINVAL;
+                    IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                    return ret;
+                }
+                ret = vltl_lang_function_local_set(
+                          vltl_global_context.function, typeas_operation->lchild->evaluates_to.as_unknown, &vltl_lang_type_long,
+                          NULL, created_literal);
+                if(ret) {
+                    IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                    return ret;
+                }
+
+                fputs("\tmov -8[%rbp], %rdi\n", dest);
+                break;
+            case(VLTL_SAST_OPERATION_KIND_CSV):
+                for(size_t i = 0; i < vltl_sast_operation_args_argc(*(src->root->rchild->lchild)); i++) {
+                    Vltl_sast_operation *typeas_operation = src->root->rchild->lchild->arguments[i];
+
+                    Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+                    if(created_literal == NULL) {
+                        ret = ENOMEM;
+                        IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+                        return ret;
+                    }
+                    *created_literal = (Vltl_lang_literal) {
+                        .name = NULL,
+                        .type = &vltl_lang_type_long,
+                        .attributes = { 0 },
+                        .fields = { (void *) 0 }
+                    };
+
+                    if(typeas_operation->lchild->evaluates_to.as_unknown == NULL) {
+                        ret = EINVAL;
+                        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                        return ret;
+                    }
+                    ret = vltl_lang_function_local_set(
+                              vltl_global_context.function, typeas_operation->lchild->evaluates_to.as_unknown, &vltl_lang_type_long,
+                              NULL, created_literal);
+                    if(ret) {
+                        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                        return ret;
+                    }
+
+                    switch(i) {
+                    case 0:
+                        fputs("\tmov -8[%rbp], %rdi\n", dest);
+                        break;
+                    case 1:
+                        fputs("\tmov -16[%rbp], %rsi\n", dest);
+                        break;
+                    case 2:
+                        fputs("\tmov -24[%rbp], %rdx\n", dest);
+                        break;
+                    case 3:
+                        fputs("\tmov -32[%rbp], %rcx\n", dest);
+                        break;
+                    default:
+                        VLTL_RETURN(ENOTRECOVERABLE, "Don't know that register!");
+                        break;
+                    }
+                }
+            default:
+                break;
+            }
+        }
 
         return 0;
         break;

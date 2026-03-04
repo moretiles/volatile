@@ -1,4 +1,4 @@
-function main_function_main {
+function main_function_main ( ) {
     return main_function_num_1 + main_function_num_2
 }
 

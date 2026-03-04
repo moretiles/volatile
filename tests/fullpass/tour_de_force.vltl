@@ -1,0 +1,10 @@
+constant tour_de_force_constant = 1
+global tour_de_force_global = 2
+
+function tour_de_force_main ( ) {
+    local a = 3
+    local b = 3 * (1 + (5 * a) )
+    local c = b * tour_de_force_global - tour_de_force_constant
+
+    return c
+}

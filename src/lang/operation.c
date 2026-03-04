@@ -36,6 +36,12 @@ Vltl_lang_operation vltl_lang_operation_comma = {
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
+Vltl_lang_operation vltl_lang_operation_typeas = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_TYPEAS,
+    .name = ":",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
 Vltl_lang_operation vltl_lang_operation_grouping_open = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_GROUPING_OPEN,
     .name = "(",

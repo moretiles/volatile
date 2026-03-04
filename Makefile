@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Wpedantic --std=c11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label
+CFLAGS=-Wall -Wextra -Wpedantic --std=gnu11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label
 CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-unused-command-line-argument
 DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
 OPTIMIZE=-O0
@@ -41,6 +41,8 @@ test_asm_files += tests/fullpass/return_using_division.bin.S
 test_asm_files += tests/fullpass/grouping_beats_multiplication.bin.S
 test_asm_files += tests/fullpass/simple_comma.bin.S
 test_asm_files += tests/fullpass/function_call_one_arg.bin.S
+test_asm_files += tests/fullpass/function_with_args.bin.S
+test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################
 #                                                                     #

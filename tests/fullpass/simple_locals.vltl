@@ -1,4 +1,4 @@
-function simple_locals_main {
+function simple_locals_main ( ) {
     local simple_locals_c = 1
     local simple_locals_d = 2
 

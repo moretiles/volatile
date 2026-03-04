@@ -1,7 +1,7 @@
 global simple_globals_a = 2
 global simple_globals_b = 3
 
-function simple_globals_main {
+function simple_globals_main ( ) {
     simple_globals_a + 3
     4 + simple_globals_a - simple_globals_b
     return simple_globals_a + simple_globals_a + simple_globals_a

@@ -421,6 +421,7 @@ int vltl_global_table_operations_init(void) {
     vltl_global_table_operations_init_helper(&vltl_lang_operation_mul);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_div);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_comma);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_typeas);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_grouping_open);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_grouping_close);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_global);

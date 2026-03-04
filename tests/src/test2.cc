@@ -19,6 +19,13 @@ extern "C" {
     long grouping_beats_multiplication_main(void);
     long simple_comma_main(void);
     long function_call_one_arg_main(void);
+    long function_with_args_main(void);
+    long function_with_args_zero(void);
+    long function_with_args_one(long a);
+    long function_with_args_two(long a, long b);
+    long function_with_args_three(long a, long b, long c);
+    long function_with_args_four(long a, long b, long c, long d);
+    long tour_de_force_main(void);
 }
 
 TEST(file, manylines_addsub) {
@@ -72,7 +79,7 @@ TEST(file, return_using_division) {
 }
 
 TEST(file, grouping_beats_multiplication) {
-    ASSERT_EQ(15, grouping_beats_multiplication_main());
+    ASSERT_EQ(62, grouping_beats_multiplication_main());
 }
 
 TEST(file, simple_comma) {
@@ -80,6 +87,28 @@ TEST(file, simple_comma) {
 }
 
 TEST(file, function_call_one_arg) {
-    ASSERT_EQ(3, function_call_one_arg_main());
+    ASSERT_EQ(9, function_call_one_arg_main());
+}
+
+TEST(file, function_with_args) {
+    ASSERT_EQ(3400, function_with_args_main());
+    ASSERT_EQ(100, function_with_args_zero());
+    ASSERT_EQ(5, function_with_args_one(5));
+    ASSERT_EQ(73, function_with_args_two(7, 3));
+    ASSERT_EQ(241, function_with_args_three(2, 4, 1));
+    ASSERT_EQ(3192, function_with_args_four(3, 1, 9, 2));
+
+    ASSERT_EQ(
+        3611,
+        function_with_args_four(3, 1, 9, 2) +
+        function_with_args_three(2, 4, 1) +
+        function_with_args_two(7, 3) +
+        function_with_args_one(5) +
+        function_with_args_zero()
+    );
+}
+
+TEST(file, tour_de_force) {
+    ASSERT_EQ(95, tour_de_force_main());
 }
 }

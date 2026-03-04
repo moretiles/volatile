@@ -1,13 +1,13 @@
-function several_functions_return_1 {
+function several_functions_return_1 ( ) {
     return 1
 }
 
 
-function several_functions_return_2 {
+function several_functions_return_2 ( ) {
     return 1 + 1
 }
 
 
-function several_functions_return_3 {
+function several_functions_return_3 ( ) {
     return 1 + 1 + 1
 }

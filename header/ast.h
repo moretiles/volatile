@@ -64,6 +64,8 @@ typedef enum vltl_ast_operation_kind {
     VLTL_AST_OPERATION_KIND_ADD,
     VLTL_AST_OPERATION_KIND_SUB,
     VLTL_AST_OPERATION_KIND_COMMA,
+    VLTL_AST_OPERATION_KIND_CSV,
+    VLTL_AST_OPERATION_KIND_TYPEAS,
     VLTL_AST_OPERATION_KIND_EQUALS,
     VLTL_AST_OPERATION_KIND_RETURN,
     VLTL_AST_OPERATION_KIND_GLOBAL,
@@ -137,7 +139,7 @@ bool vltl_ast_operation_valid(const Vltl_ast_operation operation);
 int vltl_ast_operation_copy(Vltl_ast_operation *dest, const Vltl_ast_operation *src);
 
 // Discover how many arguments an operation_kind expects
-size_t vltl_ast_operation_kind_argc(const Vltl_ast_operation_kind operation_kind);
+size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation);
 
 // Discover how many arguments have been set for a given operation
 size_t vltl_ast_operation_argc(const Vltl_ast_operation operation);

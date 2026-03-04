@@ -31,6 +31,7 @@ bool vltl_sast_operation_kind_valid(const Vltl_sast_operation_kind operation_kin
     case VLTL_SAST_OPERATION_KIND_MUL:
     case VLTL_SAST_OPERATION_KIND_DIV:
     case VLTL_SAST_OPERATION_KIND_COMMA:
+    case VLTL_SAST_OPERATION_KIND_TYPEAS:
     case VLTL_SAST_OPERATION_KIND_CSV:
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
@@ -183,8 +184,8 @@ int vltl_sast_operation_adopt(
     return 0;
 }
 
-size_t vltl_sast_operation_kind_argc(const Vltl_sast_operation_kind operation_kind) {
-    switch(operation_kind) {
+size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation) {
+    switch(operation.kind) {
     case VLTL_SAST_OPERATION_KIND_EVAL:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
@@ -199,7 +200,6 @@ size_t vltl_sast_operation_kind_argc(const Vltl_sast_operation_kind operation_ki
         break;
     case VLTL_SAST_OPERATION_KIND_CALL:
     case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
-    case VLTL_SAST_OPERATION_KIND_FUNCTION:
     case VLTL_SAST_OPERATION_KIND_LOAD:
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_ADD:
@@ -207,10 +207,14 @@ size_t vltl_sast_operation_kind_argc(const Vltl_sast_operation_kind operation_ki
     case VLTL_SAST_OPERATION_KIND_MUL:
     case VLTL_SAST_OPERATION_KIND_DIV:
     case VLTL_SAST_OPERATION_KIND_COMMA:
+    case VLTL_SAST_OPERATION_KIND_TYPEAS:
         return 2;
         break;
-    case VLTL_SAST_OPERATION_KIND_CSV:
+    case VLTL_SAST_OPERATION_KIND_FUNCTION:
         return 3;
+        break;
+    case VLTL_SAST_OPERATION_KIND_CSV:
+        return vltl_sast_operation_args_argc(operation);
         break;
     default:
         return 0;
@@ -362,7 +366,7 @@ int vltl_sast_operation_insert_operand(
     }
 
     size_t parent_argc = vltl_sast_operation_args_argc(*parent);
-    if(parent_argc >= vltl_sast_operation_kind_argc(parent->kind)) {
+    if(parent_argc >= vltl_sast_operation_expected_argc(*parent)) {
         ret = EINVAL;
         IESTACK_PUSH(&vltl_global_errors, ret, "Cannot insert any additional arguments for parent!");
         return ret;
@@ -412,6 +416,9 @@ int vltl_sast_operation_kind_detokenize(
         break;
     case VLTL_SAST_OPERATION_KIND_DIV:
         src_string = "DIV";
+        break;
+    case VLTL_SAST_OPERATION_KIND_TYPEAS:
+        src_string = "TYPEAS";
         break;
     case VLTL_SAST_OPERATION_KIND_COMMA:
         src_string = "COMMA";
@@ -587,8 +594,7 @@ static int vltl_sast_tree_detokenize_recurse(
 
     // Don't try to detokenize or recurse.
     if(
-        operation.kind == VLTL_SAST_OPERATION_KIND_UNSET ||
-        operation.kind == VLTL_SAST_OPERATION_KIND_EVAL
+        operation.kind == VLTL_SAST_OPERATION_KIND_UNSET
     ) {
         *dest_len = 0;
         return 0;
@@ -771,8 +777,8 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
     const bool is_eval = operation->kind == VLTL_SAST_OPERATION_KIND_EVAL;
     const bool is_incomplete = vltl_sast_operation_incomplete(*operation);
     const bool argc_is_0 = vltl_sast_operation_args_argc(*operation) == 0;
-    const bool kind_argc_is_0 = vltl_sast_operation_kind_argc(operation->kind) == 0;
-    if(!is_incomplete && (is_eval || argc_is_0 || kind_argc_is_0)) {
+    const bool expected_argc_is_0 = vltl_sast_operation_expected_argc(*operation) == 0;
+    if(!is_incomplete && (is_eval || argc_is_0 || expected_argc_is_0)) {
         return 0;
     } else if (is_incomplete) {
         // Set destination for operation if not already set by popping unused register from global registers
@@ -796,7 +802,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
         operation->destination = use_this;
     } else {
         const size_t initial_argc = vltl_sast_operation_args_argc(*operation);
-        const size_t full_argc = vltl_sast_operation_kind_argc(operation->kind);
+        const size_t full_argc = vltl_sast_operation_expected_argc(*operation);
 
         for(size_t i = 0; i < vltl_sast_operation_args_argc(*operation); i++) {
             if(i >= 1) {
@@ -852,7 +858,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 
         // operation-specific check on children
         const size_t operation_argc = vltl_sast_operation_args_argc(*operation);
-        const size_t expected_operation_argc = vltl_sast_operation_kind_argc(operation->kind);
+        const size_t expected_operation_argc = vltl_sast_operation_expected_argc(*operation);
         bool all_children_can_be_evaluated_as_immediate_values = false;
         if(initial_argc != full_argc) {
             IESTACK_PUSH(&vltl_global_errors, ret, "Invalid number of argument for operation!");
@@ -869,7 +875,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
-            for(size_t i = 0; i < vltl_sast_operation_kind_argc(operation->kind); i++) {
+            for(size_t i = 0; i < vltl_sast_operation_expected_argc(*operation); i++) {
                 if(operation->arguments[i]->evaluates_to.kind != VLTL_ASM_OPERAND_KIND_IMMEDIATE) {
                     all_children_can_be_evaluated_as_immediate_values = false;
                     break;
@@ -907,7 +913,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
-            for(size_t i = 0; i < vltl_sast_operation_kind_argc(operation->kind); i++) {
+            for(size_t i = 0; i < vltl_sast_operation_expected_argc(*operation); i++) {
                 if(operation->arguments[i]->evaluates_to.kind != VLTL_ASM_OPERAND_KIND_IMMEDIATE) {
                     all_children_can_be_evaluated_as_immediate_values = false;
                     break;
@@ -945,7 +951,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
-            for(size_t i = 0; i < vltl_sast_operation_kind_argc(operation->kind); i++) {
+            for(size_t i = 0; i < vltl_sast_operation_expected_argc(*operation); i++) {
                 if(operation->arguments[i]->evaluates_to.kind != VLTL_ASM_OPERAND_KIND_IMMEDIATE) {
                     all_children_can_be_evaluated_as_immediate_values = false;
                     break;
@@ -983,7 +989,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             }
 
             all_children_can_be_evaluated_as_immediate_values = true;
-            for(size_t i = 0; i < vltl_sast_operation_kind_argc(operation->kind); i++) {
+            for(size_t i = 0; i < vltl_sast_operation_expected_argc(*operation); i++) {
                 if(operation->arguments[i]->evaluates_to.kind != VLTL_ASM_OPERAND_KIND_IMMEDIATE) {
                     all_children_can_be_evaluated_as_immediate_values = false;
                     break;
@@ -1019,6 +1025,12 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
             }
             break;
         case VLTL_SAST_OPERATION_KIND_COMMA:
+            ret = vltl_sast_operation_protect_ge(tree, operation);
+            if(ret && ret != ENODATA) {
+                return ret;
+            }
+            break;
+        case VLTL_SAST_OPERATION_KIND_TYPEAS:
             ret = vltl_sast_operation_protect_ge(tree, operation);
             if(ret && ret != ENODATA) {
                 return ret;
@@ -1364,7 +1376,7 @@ int vltl_sast_operation_convert_amd64_return(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-    int ret = 0;
+    //int ret = 0;
     Vltl_sast_operation *return_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *store_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *eval_rax_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
@@ -1373,10 +1385,12 @@ int vltl_sast_operation_convert_amd64_return(
     }
 
     Vltl_asm_operand use_rax = vltl_asm_operand_amd64_rax;
+    /*
     ret = vltl_sast_tree_registers_use(on_this, &use_rax, future_parent, false);
     if(ret) {
         return ret;
     }
+    */
 
     (void) src;
     *return_operation = (Vltl_sast_operation) {
@@ -1392,10 +1406,16 @@ int vltl_sast_operation_convert_amd64_return(
     *eval_rax_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_EVAL,
         .parent = NULL,
-        .evaluates_to = vltl_asm_operand_amd64_rax
+        .evaluates_to = use_rax
     };
 
     *equivalent = return_operation;
+
+    // don't use tree
+    (void) on_this;
+
+    // don't use parent
+    (void) future_parent;
 
     // push twice for destination and source
     vstack_push(insert_below_next, &store_operation);
@@ -1534,20 +1554,24 @@ int vltl_sast_operation_convert_amd64_div(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-    int ret = 0;
+    //int ret = 0;
     Vltl_sast_operation *div_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *store_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_sast_operation *eval_rax_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     Vltl_asm_operand use_rax = vltl_asm_operand_amd64_rax;
+    /*
     ret = vltl_sast_tree_registers_use(on_this, &use_rax, future_parent, false);
     if(ret) {
         return ret;
     }
+    */
+    /*
     Vltl_asm_operand use_rdx = vltl_asm_operand_amd64_rdx;
     ret = vltl_sast_tree_registers_use(on_this, &use_rdx, future_parent, false);
     if(ret) {
         return ret;
     }
+    */
 
     if(div_operation == NULL) {
         return ENOMEM;
@@ -1570,10 +1594,16 @@ int vltl_sast_operation_convert_amd64_div(
     *eval_rax_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_EVAL,
         .parent = NULL,
-        .evaluates_to = vltl_asm_operand_amd64_rax
+        .evaluates_to = use_rax
     };
 
     *equivalent = div_operation;
+
+    // don't use tree
+    (void) on_this;
+
+    // don't use parent
+    (void) future_parent;
 
     // push twice for the lchild and rchild of the division itself
     vstack_push(insert_below_next, &div_operation);
@@ -1607,6 +1637,65 @@ int vltl_sast_operation_convert_amd64_comma(
     // push twice for the lchild and rchild of the comma itself
     vstack_push(insert_below_next, &comma_operation);
     vstack_push(insert_below_next, &comma_operation);
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_csv(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *csv_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(csv_operation == NULL) {
+        return ENOMEM;
+    }
+
+    // Don't use src for anything
+    (void) *src;
+
+    *csv_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_CSV,
+        .parent = NULL
+    };
+
+    *equivalent = csv_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // csv can have variable number
+    for(size_t i = 0; i < vltl_ast_operation_expected_argc(*src); i++) {
+        vstack_push(insert_below_next, &csv_operation);
+    }
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_typeas(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *typeas_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(typeas_operation == NULL) {
+        return ENOMEM;
+    }
+
+    // Don't use src for anything
+    (void) *src;
+
+    *typeas_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_TYPEAS,
+        .parent = NULL
+    };
+
+    *equivalent = typeas_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // push twice for the variable name and type of the typeas itself
+    vstack_push(insert_below_next, &typeas_operation);
+    vstack_push(insert_below_next, &typeas_operation);
     return 0;
 }
 
@@ -1707,6 +1796,7 @@ int vltl_sast_operation_convert_amd64_function(
     (void) on_this;
     (void) future_parent;
 
+    vstack_push(insert_below_next, &function_operation);
     vstack_push(insert_below_next, &function_operation);
     vstack_push(insert_below_next, &function_operation);
     return 0;
@@ -1835,8 +1925,14 @@ int vltl_sast_operation_convert_amd64(
                     (src->parent->kind == VLTL_AST_OPERATION_KIND_FUNCTION)
                 )
                                               );
+        const bool parent_is_psuedo = (
+                                          !parent_is_null &&
+                                          (
+                                              (src->parent->kind == VLTL_AST_OPERATION_KIND_TYPEAS)
+                                          )
+                                      );
 
-        if(is_destination_of_parent && parent_modifies_variable) {
+        if(parent_is_psuedo || (is_destination_of_parent && parent_modifies_variable)) {
             return vltl_sast_operation_convert_amd64_eval(on_this, future_parent, equivalent, insert_below_next, src);
         } else {
             return vltl_sast_operation_convert_amd64_load(on_this, future_parent, equivalent, insert_below_next, src);
@@ -1844,13 +1940,13 @@ int vltl_sast_operation_convert_amd64(
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
         return vltl_sast_operation_convert_amd64_grouping_open(
-            on_this, future_parent, equivalent, insert_below_next, src
-        );
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
         return vltl_sast_operation_convert_amd64_grouping_close(
-            on_this, future_parent, equivalent, insert_below_next, src
-        );
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
         return vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src);
@@ -1869,6 +1965,12 @@ int vltl_sast_operation_convert_amd64(
         break;
     case VLTL_AST_OPERATION_KIND_COMMA:
         return vltl_sast_operation_convert_amd64_comma(on_this, future_parent, equivalent, insert_below_next, src);
+        break;
+    case VLTL_AST_OPERATION_KIND_CSV:
+        return vltl_sast_operation_convert_amd64_csv(on_this, future_parent, equivalent, insert_below_next, src);
+        break;
+    case VLTL_AST_OPERATION_KIND_TYPEAS:
+        return vltl_sast_operation_convert_amd64_typeas(on_this, future_parent, equivalent, insert_below_next, src);
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
         return vltl_sast_operation_convert_amd64_store(on_this, future_parent, equivalent, insert_below_next, src);
@@ -1953,7 +2055,7 @@ static int vltl_sast_tree_convert_helper(
     } else if(current_operation == NULL) {
         return 0;
     } else if(
-        vltl_ast_operation_argc(*current_operation) != vltl_ast_operation_kind_argc(current_operation->kind)
+        vltl_ast_operation_argc(*current_operation) != vltl_ast_operation_expected_argc(*current_operation)
     ) {
         ret = EINVAL;
         IESTACK_PUSH(&vltl_global_errors, ret, "The number of arguments src has is invalid!");
@@ -1964,7 +2066,7 @@ static int vltl_sast_tree_convert_helper(
     ret = vstack_pop(sast_operations_to_insert_below, &insert_below);
     if(ret == 0) {
         insert_below_argc = vltl_sast_operation_args_argc(*insert_below);
-        if(insert_below_argc >= vltl_sast_operation_kind_argc(insert_below->kind)) {
+        if(insert_below_argc >= vltl_sast_operation_expected_argc(*insert_below)) {
             ret = EXFULL;
             IESTACK_PUSH(
                 &vltl_global_errors, ret,
@@ -2012,6 +2114,146 @@ static int vltl_sast_tree_convert_helper(
     return 0;
 }
 
+int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
+    if(tree == NULL) {
+        VLTL_RETURN(EINVAL, "tree is NULL!");
+    } else if(operation == NULL) {
+        VLTL_RETURN(EINVAL, "operation is NULL!");
+    }
+
+    operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
+    size_t first_unused_index = 0;
+    Vltl_sast_operation *lchild = operation->lchild;
+    Vltl_sast_operation *rchild = operation->rchild;
+
+    if(lchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
+        bool done = false;
+        size_t i = 0;
+        for(
+                i = 0;
+                !done &&
+                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
+                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
+                i++
+           ) {
+            if(lchild->arguments[i] == NULL) {
+                done = true;
+                break;
+            }
+
+            operation->arguments[first_unused_index++] = lchild->arguments[i];
+            lchild->arguments[i]->parent = operation;
+        }
+    } else {
+        first_unused_index++;
+    }
+
+    if(first_unused_index >= VLTL_SAST_OPERATION_ARGUMENTS_MAX) {
+        VLTL_RETURN(EXFULL, "Too many children of left CSV!");
+    }
+
+    if(rchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
+        bool done = false;
+        size_t i = 0;
+        for(
+                i = 0;
+                !done &&
+                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
+                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
+                i++
+           ) {
+            if(rchild->arguments[i] == NULL) {
+                done = true;
+                break;
+            }
+
+            operation->arguments[first_unused_index++] = rchild->arguments[i];
+            rchild->arguments[i]->parent = operation;
+        }
+    } else {
+        operation->arguments[first_unused_index++] = rchild;
+    }
+
+    return 0;
+}
+
+int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation *operation, size_t index) {
+    if(tree == NULL) {
+        VLTL_RETURN(EINVAL, "tree is NULL!");
+    } else if(operation == NULL) {
+        VLTL_RETURN(EINVAL, "operation is NULL!");
+    }
+
+    Vltl_asm_operand destination_operand = { 0 };
+    switch(index) {
+    case 0:
+        destination_operand = (Vltl_asm_operand) vltl_asm_operand_amd64_rdi;
+        break;
+    case 1:
+        destination_operand = (Vltl_asm_operand) vltl_asm_operand_amd64_rsi;
+        break;
+    case 2:
+        destination_operand = (Vltl_asm_operand) vltl_asm_operand_amd64_rdx;
+        break;
+    case 3:
+        destination_operand = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
+        break;
+    default:
+        VLTL_RETURN(ENOTRECOVERABLE, "Haven't implemented that many registers yet!");
+        break;
+    }
+
+    Vltl_sast_operation *load_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    Vltl_sast_operation *destination_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(load_operation == NULL) {
+        return ENOMEM;
+    }
+    *load_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_LOAD,
+        .lchild = destination_operation,
+        .destination = destination_operand
+    };
+    *destination_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .parent = load_operation,
+        .arguments = { 0 },
+        .evaluates_to = destination_operand
+    };
+    VLTL_EXPECT(vltl_sast_operation_adopt(tree, load_operation, operation), "Unable to adopt argument to call!");
+
+    return 0;
+}
+
+int vltl_sast_tree_reshape_call(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
+    if(tree == NULL) {
+        VLTL_RETURN(EINVAL, "tree being worked on is NULL!");
+    } else if(operation == NULL) {
+        VLTL_RETURN(EINVAL, "source operation is NULL");
+    } else if(operation->rchild == NULL || operation->rchild->lchild == NULL) {
+        VLTL_RETURN(EINVAL, "source operation has no argument");
+    }
+
+    Vltl_sast_operation *const function_arguments = operation->rchild->lchild;
+    switch(function_arguments->kind) {
+    case VLTL_SAST_OPERATION_KIND_CSV:
+        for(size_t i = 0; i < vltl_sast_operation_args_argc(*function_arguments); i++) {
+            VLTL_EXPECT(
+                vltl_sast_tree_reshape_call_helper(tree, function_arguments->arguments[i], i),
+                "Failed to write assembly for moving argument to register"
+            );
+        }
+        break;
+    default:
+        VLTL_EXPECT(
+            vltl_sast_tree_reshape_call_helper(tree, function_arguments, 0),
+            "Failed to write assembly for moving argument to register"
+        );
+        break;
+    }
+
+    return 0;
+}
+
 int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     int ret = 0;
     if(tree == NULL || operation == NULL) {
@@ -2033,30 +2275,71 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 
     switch(operation->kind) {
     case VLTL_SAST_OPERATION_KIND_COMMA:
-        operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
-        if(operation->lchild == NULL || operation->lchild->kind != VLTL_SAST_OPERATION_KIND_CSV) {
-            break;
-        }
+        VLTL_EXPECT(vltl_sast_tree_reshape_comma(tree, operation), "Failed to reshape comma operation!");
+        break;
+    case VLTL_SAST_OPERATION_KIND_CALL:
+        VLTL_EXPECT(vltl_sast_tree_reshape_call(tree, operation), "Failed to reshape call operation!");
+        break;
+    default:
+        break;
+    }
 
-        // enqueue all children of rchild CSV
+    /*
+    switch(operation->kind) {
+    case VLTL_SAST_OPERATION_KIND_COMMA:
+        operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
+
+        size_t first_unused_index = 0;
         Vltl_sast_operation *lchild = operation->lchild;
         Vltl_sast_operation *rchild = operation->rchild;
-        bool done = false;
-        size_t i = 0;
-        for(i = 0; !done && i < (VLTL_SAST_OPERATION_ARGUMENTS_MAX - 1); i++) {
-            if(lchild->arguments[i] == NULL) {
-                done = true;
-                break;
-            }
 
-            operation->arguments[i] = lchild->arguments[i];
+        if(lchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
+            bool done = false;
+            size_t i = 0;
+            for(
+                i = 0;
+                !done &&
+                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
+                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
+                i++
+            ) {
+                if(lchild->arguments[i] == NULL) {
+                    done = true;
+                    break;
+                }
+
+                operation->arguments[first_unused_index++] = lchild->arguments[i];
+            }
+        } else {
+            first_unused_index++;
         }
-        operation->arguments[i] = rchild;
+
+        if(rchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
+            bool done = false;
+            size_t i = 0;
+            for(
+                i = 0;
+                !done &&
+                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
+                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
+                i++
+            ) {
+                if(rchild->arguments[i] == NULL) {
+                    done = true;
+                    break;
+                }
+
+                operation->arguments[first_unused_index++] = rchild->arguments[i];
+            }
+        } else {
+            operation->arguments[first_unused_index++] = rchild;
+        }
 
         break;
     default:
         break;
     }
+    */
 
     return 0;
 }
@@ -2448,6 +2731,7 @@ int vltl_sast_operation_protect(
 }
 
 // Protect protect_this from parents and lower-indexed siblings using identical destination operand
+/*
 int vltl_sast_operation_protect_le(
     Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_asm_operand *from_that
 ) {
@@ -2490,6 +2774,7 @@ int vltl_sast_operation_protect_le(
 
     return 0;
 }
+*/
 
 int vltl_sast_operation_protect_ge_recurse(
     Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_sast_operation *from_that

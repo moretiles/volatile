@@ -17,6 +17,7 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_MUL,
     VLTL_LANG_OPERATION_KIND_DIV,
     VLTL_LANG_OPERATION_KIND_COMMA,
+    VLTL_LANG_OPERATION_KIND_TYPEAS,
     VLTL_LANG_OPERATION_KIND_GROUPING_OPEN,
     VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE,
     VLTL_LANG_OPERATION_KIND_GLOBAL,
@@ -42,6 +43,7 @@ extern struct vltl_lang_operation vltl_lang_operation_sub;
 extern struct vltl_lang_operation vltl_lang_operation_mul;
 extern struct vltl_lang_operation vltl_lang_operation_div;
 extern struct vltl_lang_operation vltl_lang_operation_comma;
+extern struct vltl_lang_operation vltl_lang_operation_typeas;
 extern struct vltl_lang_operation vltl_lang_operation_grouping_open;
 extern struct vltl_lang_operation vltl_lang_operation_grouping_close;
 extern struct vltl_lang_operation vltl_lang_operation_global;

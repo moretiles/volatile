@@ -377,7 +377,7 @@ TEST(sast, operation_connect_and_compile) {
     fputs("\n", stdout);
     fputs("\n", stdout);
 
-    const size_t buf_cap = 999;
+    const size_t buf_cap = 9999;
     size_t buf_len = 0;
     char buf[buf_cap];
     ASSERT_EQ(
@@ -917,7 +917,7 @@ TEST(oneline, define_function) {
     vltl_global_init();
     char buf[999];
     size_t buf_len = 0;
-    const char *mathline = "function just_return_3 {\n"
+    const char *mathline = "function just_return_3 1 {\n"
                            "    return 3\n"
                            "}";
     Vltl_lexer_line line = { 0 };
@@ -1075,6 +1075,20 @@ TEST(fullpass, function_call_one_arg) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/function_call_one_arg.bin";
     char src_filename[] = "tests/fullpass/function_call_one_arg.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, function_with_args) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/function_with_args.bin";
+    char src_filename[] = "tests/fullpass/function_with_args.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, tour_de_force) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/tour_de_force.bin";
+    char src_filename[] = "tests/fullpass/tour_de_force.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 }

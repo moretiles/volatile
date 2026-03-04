@@ -1,0 +1,23 @@
+function function_with_args_zero ( ) {
+    return 100
+}
+
+function function_with_args_one ( a: t ) {
+    return a
+}
+
+function function_with_args_two ( a: t, b: t ) {
+    return 10 * a + b
+}
+
+function function_with_args_three ( a: t, b: t, c: t ) {
+    return 100 * a + 10 * b + c
+}
+
+function function_with_args_four ( a: t, b: t, c: t, d: t ) {
+    return 1000 * a + 100 * b + 10 * c + d
+}
+
+function function_with_args_main ( ) {
+    return function_with_args_zero( ) + function_with_args_one( 3300, 2, 3, 4 )
+}

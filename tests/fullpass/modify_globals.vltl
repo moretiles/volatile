@@ -1,7 +1,7 @@
 global modify_globals_a = 2
 global modify_globals_b = 3
 
-function modify_globals_main {
+function modify_globals_main ( ) {
     modify_globals_a = 4 - 3
     modify_globals_b = 6 + 4
     modify_globals_a = modify_globals_b - modify_globals_a

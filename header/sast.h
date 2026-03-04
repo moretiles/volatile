@@ -30,6 +30,7 @@ typedef enum vltl_sast_operation_kind {
     VLTL_SAST_OPERATION_KIND_MUL,
     VLTL_SAST_OPERATION_KIND_DIV,
     VLTL_SAST_OPERATION_KIND_COMMA,
+    VLTL_SAST_OPERATION_KIND_TYPEAS,
     VLTL_SAST_OPERATION_KIND_CSV,
     VLTL_SAST_OPERATION_KIND_GLOBAL,
     VLTL_SAST_OPERATION_KIND_CONSTANT,
@@ -116,7 +117,7 @@ bool vltl_sast_operation_valid(const Vltl_sast_operation operation);
 bool vltl_sast_operation_incomplete(const Vltl_sast_operation operation);
 
 // Discover how many arguments an operation_kind expects
-size_t vltl_sast_operation_kind_argc(const Vltl_sast_operation_kind operation_kind);
+size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation);
 
 // Discover how many arguments an operation currently holds
 size_t vltl_sast_operation_args_argc(const Vltl_sast_operation operation);

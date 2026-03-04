@@ -50,6 +50,26 @@ int iestack_pop(Iestack *stack, Iestack_error *dest_error);
 return error_code
 #define IESTACK_RETURNF(stack, error_code, fstring, ...) IESTACK_PUSHF(stack, error_code, fstring, __VA_ARGS__); \
 return error_code
+#define IESTACK_EXPECT(stack, error_expr, string) { \
+    const int ___error_code = error_expr; \
+    if(___error_code) { \
+        IESTACK_RETURN(stack, ___error_code, string); \
+    } \
+}
+#define IESTACK_EXPECTF(stack, error_expr, fstring, ...) { \
+    const int ___error_code = error_expr; \
+    if(___error_code) { \
+        IESTACK_RETURNF(stack, ___error_code, fstring, __VA_ARGS__); \
+    } \
+}
+
+// replace with your global error stack
+#define VLTL_PUSH(error_expr, string) IESTACK_PUSH(&vltl_global_errors, error_expr, string)
+#define VLTL_PUSHF(error_expr, fstring, ...) IESTACK_PUSHF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
+#define VLTL_RETURN(error_expr, string) IESTACK_RETURN(&vltl_global_errors, error_expr, string)
+#define VLTL_RETURNF(error_expr, fstring, ...) IESTACK_RETURNF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
+#define VLTL_EXPECT(error_expr, string) IESTACK_EXPECT(&vltl_global_errors, error_expr, string)
+#define VLTL_EXPECTF(error_expr, fstring, ...) IESTACK_EXPECTF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
 
 #ifdef __cplusplus
 }

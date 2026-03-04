@@ -1,8 +1,8 @@
 constant simple_comma_whatever = 99
 
-function simple_comma_main {
+function simple_comma_main ( ) {
     local a = 5
 
-    1, simple_comma_whatever * 3, 15 / a + 1
+    (1, simple_comma_whatever * 3, 15 / a + 1, 4, 5, 6, 7)
     return 3
 }

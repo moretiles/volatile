@@ -1,7 +1,7 @@
-function function_call_one_arg_callme {
+function function_call_one_arg_callme ( ) {
     return 3
 }
 
-function function_call_one_arg_main {
-    return function_call_one_arg_callme(1)
+function function_call_one_arg_main ( ) {
+    return function_call_one_arg_callme( ) + function_call_one_arg_callme( ) + function_call_one_arg_callme( )
 }
