@@ -514,22 +514,6 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
     }
 
     {
-        /*
-        Vltl_lang_local *local = NULL;
-        int ret = nkht_get(vltl_global_table_locals, tmp, &local);
-        if(ret == 0) {
-            dest->token.kind = VLTL_LANG_TOKEN_KIND_LOCAL;
-            dest->token.local = local;
-
-            return 0;
-        } else if(ret == ENODATA) {
-            // keep going
-        } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
-            return ENOTRECOVERABLE;
-        }
-        */
-
         if(vltl_global_context.function != NULL) {
             Vltl_lang_local *local = NULL;
             int ret = vltl_lang_function_local_get(&local, vltl_global_context.function, tmp);

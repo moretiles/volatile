@@ -2178,11 +2178,8 @@ int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *oper
 }
 
 int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation *operation, size_t index) {
-    if(tree == NULL) {
-        VLTL_RETURN(EINVAL, "tree is NULL!");
-    } else if(operation == NULL) {
-        VLTL_RETURN(EINVAL, "operation is NULL!");
-    }
+    VLTL_SUPPOSE(tree, EINVAL, "tree is NULL!");
+    VLTL_SUPPOSE(operation, EINVAL, "operation is NULL!");
 
     Vltl_asm_operand destination_operand = { 0 };
     switch(index) {
@@ -2204,10 +2201,9 @@ int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation
     }
 
     Vltl_sast_operation *load_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(load_operation, ENOMEM, "no memory for load_operation!");
     Vltl_sast_operation *destination_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    if(load_operation == NULL) {
-        return ENOMEM;
-    }
+    VLTL_SUPPOSE(destination_operation, ENOMEM, "no memory for destination_operation!");
     *load_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_LOAD,
         .lchild = destination_operation,
@@ -2283,63 +2279,6 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
     default:
         break;
     }
-
-    /*
-    switch(operation->kind) {
-    case VLTL_SAST_OPERATION_KIND_COMMA:
-        operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
-
-        size_t first_unused_index = 0;
-        Vltl_sast_operation *lchild = operation->lchild;
-        Vltl_sast_operation *rchild = operation->rchild;
-
-        if(lchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
-            bool done = false;
-            size_t i = 0;
-            for(
-                i = 0;
-                !done &&
-                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
-                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
-                i++
-            ) {
-                if(lchild->arguments[i] == NULL) {
-                    done = true;
-                    break;
-                }
-
-                operation->arguments[first_unused_index++] = lchild->arguments[i];
-            }
-        } else {
-            first_unused_index++;
-        }
-
-        if(rchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
-            bool done = false;
-            size_t i = 0;
-            for(
-                i = 0;
-                !done &&
-                i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
-                first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
-                i++
-            ) {
-                if(rchild->arguments[i] == NULL) {
-                    done = true;
-                    break;
-                }
-
-                operation->arguments[first_unused_index++] = rchild->arguments[i];
-            }
-        } else {
-            operation->arguments[first_unused_index++] = rchild;
-        }
-
-        break;
-    default:
-        break;
-    }
-    */
 
     return 0;
 }
@@ -2618,29 +2557,6 @@ int vltl_sast_operation_protect(
         if(ret) {
             return ret;
         }
-        /*
-        Vltl_lang_local *check_if_exists = NULL;
-        ret = vltl_lang_function_local_get(&check_if_exists, vltl_global_context.function, "_tmp");
-        if(ret == ENODATA) {
-            tmp_local_name = "_tmp";
-            ret = vltl_lang_function_local_set(
-                    vltl_global_context.function, tmp_local_name, &vltl_lang_type_long, NULL, literal_that_is_0
-                    );
-            if(ret) {
-                return ret;
-            }
-        } else if(ret) {
-            return ret;
-        } else {
-            tmp_local_name = "_tmp2";
-            ret = vltl_lang_function_local_set(
-                    vltl_global_context.function, tmp_local_name, &vltl_lang_type_long, NULL, literal_that_is_0
-                    );
-            if(ret) {
-                return ret;
-            }
-        }
-        */
     }
 
     // create store operation that stores from target register to tmp_location

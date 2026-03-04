@@ -62,6 +62,18 @@ return error_code
         IESTACK_RETURNF(stack, ___error_code, fstring, __VA_ARGS__); \
     } \
 }
+#define IESTACK_SUPPOSE(stack, bool_expr, error_code, string) { \
+    const bool ___bool_value = bool_expr; \
+    if(!___bool_value) { \
+        IESTACK_RETURN(stack, error_code, string); \
+    } \
+}
+#define IESTACK_SUPPOSEF(stack, bool_expr, error_code, fstring, ...) { \
+    const bool ___bool_value = bool_expr; \
+    if(!___bool_value) { \
+        IESTACK_RETURNF(stack, error_code, fstring, __VA_ARGS__); \
+    } \
+}
 
 // replace with your global error stack
 #define VLTL_PUSH(error_expr, string) IESTACK_PUSH(&vltl_global_errors, error_expr, string)
@@ -70,6 +82,8 @@ return error_code
 #define VLTL_RETURNF(error_expr, fstring, ...) IESTACK_RETURNF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
 #define VLTL_EXPECT(error_expr, string) IESTACK_EXPECT(&vltl_global_errors, error_expr, string)
 #define VLTL_EXPECTF(error_expr, fstring, ...) IESTACK_EXPECTF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
+#define VLTL_SUPPOSE(bool_expr, error_code, string) IESTACK_SUPPOSE(&vltl_global_errors, bool_expr, error_code, string)
+#define VLTL_SUPPOSEF(bool_expr, error_code, fstring, ...) IESTACK_SUPPOSEF(&vltl_global_errors, bool_expr, error_code, fstring, __VA_ARGS__)
 
 #ifdef __cplusplus
 }

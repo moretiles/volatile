@@ -112,20 +112,6 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         return EINVAL;
     }
 
-    // does anything special need to be done?
-    /*
-    switch(src->kind) {
-    case VLTL_SAST_OPERATION_KIND_CALL:
-        VLTL_EXPECT(
-            vltl_compile_operation_convert_call(dest, src),
-            "Helper function vltl_compile_operation_convert_call produced strange error!"
-        );
-        break;
-    default:
-        break;
-    }
-    */
-
     // handle instruction
     Vltl_asm_instruction as_instruction = { 0 };
     {
@@ -815,61 +801,8 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             }
         }
 
-        /*
-        if(vltl_global_context.function_name) {
-            switch(operation_kind_for_current_line) {
-            //case "local":
-            //case "prelude":
-            //case "defer":
-                // not yet supported
-                //ret = EINVAL;
-                //goto vltl_compile_file_error;
-                //break;
-            case VLTL_LANG_OPERATION_KIND_BODY_CLOSE:
-                // end of function
-
-                vltl_global_context.function_name = NULL;
-                break;
-            default:
-                vltl_compile_line_trio_queue_enqueue(current_function.normal_lines, &(start_of_line[start_of_next_token]));
-                break;
-            }
-        } else {
-            switch(operation_kind_for_current_line) {
-            //case "import":
-            //case "struct":
-            //case "func":
-                // not yet supported
-                //ret = EINVAL;
-                //goto vltl_compile_file_error;
-                //break;
-            case VLTL_LANG_OPERATION_KIND_CONSTANT:
-                vltl_compile_line_trio_queue_enqueue(constant_lines, &(start_of_line[start_of_next_token]));
-                break;
-            case VLTL_LANG_OPERATION_KIND_GLOBAL:
-                vltl_compile_line_trio_queue_enqueue(global_lines, &(start_of_line[start_of_next_token]));
-                break;
-            case VLTL_LANG_OPERATION_KIND_FUNCTION:
-                vltl_global_context.function_name = "undetermined";
-                init current function
-                vltl_compile_line_trio_queue_enqueue(function_lines, &current_function);
-                break;
-            case VLTL_LANG_OPERATION_KIND_BODY_CLOSE:
-                // Must be the case that this is the end of a function
-                vltl_global_context.function_name = NULL;
-                break;
-            default:
-                ret = EINVAL;
-                goto vltl_compile_file_error;
-                break;
-            }
-        }
-        */
-
-        {
-            if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
-                done = true;
-            }
+        if(fgets(big_buf, big_buf_cap, src_file) == NULL) {
+            done = true;
         }
     }
 
