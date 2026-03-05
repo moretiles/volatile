@@ -552,9 +552,9 @@ TEST_F(AstFixture1, tree_insert) {
     ASSERT_EQ(0, vltl_ast_tree_insert(&ast_tree, &ast_mul_operation2));
     ASSERT_EQ(0, vltl_ast_tree_insert(&ast_tree, &ast_eval4_operation));
 
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, stdout);
     ast_tree.root = nullptr;
     ast_tree.last = nullptr;
@@ -576,7 +576,7 @@ TEST(lexer, line_convert_simple) {
 namespace {
 TEST(oneline, addsub) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "3 + 4 - 2";
     Vltl_lexer_line line = { 0 };
@@ -591,7 +591,7 @@ TEST(oneline, addsub) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -601,7 +601,7 @@ TEST(oneline, addsub) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -625,7 +625,7 @@ TEST(oneline, addsub) {
 
 TEST(oneline, return_addsub) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "return 3 + 4 - 2";
     Vltl_lexer_line line = { 0 };
@@ -640,7 +640,7 @@ TEST(oneline, return_addsub) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -650,7 +650,7 @@ TEST(oneline, return_addsub) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -672,7 +672,7 @@ TEST(oneline, return_addsub) {
 
 TEST(oneline, equals_global) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "a = 6 + 7";
     Vltl_lexer_line line = { 0 };
@@ -687,7 +687,7 @@ TEST(oneline, equals_global) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -697,7 +697,7 @@ TEST(oneline, equals_global) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -721,7 +721,7 @@ TEST(oneline, equals_global) {
 
 TEST(oneline, define_globals) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "global a = 5";
     Vltl_lexer_line line = { 0 };
@@ -736,7 +736,7 @@ TEST(oneline, define_globals) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -746,7 +746,7 @@ TEST(oneline, define_globals) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -770,7 +770,7 @@ TEST(oneline, define_globals) {
 
 TEST(oneline, define_constants) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "constant one = 1";
     Vltl_lexer_line line = { 0 };
@@ -785,7 +785,7 @@ TEST(oneline, define_constants) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -795,7 +795,7 @@ TEST(oneline, define_constants) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -819,7 +819,7 @@ TEST(oneline, define_constants) {
 
 TEST(oneline, define_global) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "global abc = 1 + 2 + 3";
     Vltl_lexer_line line = { 0 };
@@ -834,7 +834,7 @@ TEST(oneline, define_global) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -844,7 +844,7 @@ TEST(oneline, define_global) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -867,7 +867,7 @@ TEST(oneline, define_global) {
 
 TEST(oneline, define_constant) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "constant running_out_of_variable_names = 3 + 4 + 5";
     Vltl_lexer_line line = { 0 };
@@ -882,7 +882,7 @@ TEST(oneline, define_constant) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -892,7 +892,7 @@ TEST(oneline, define_constant) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -915,7 +915,7 @@ TEST(oneline, define_constant) {
 
 TEST(oneline, define_function) {
     vltl_global_init();
-    char buf[999];
+    char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "function just_return_3 1 {\n"
                            "    return 3\n"
@@ -932,7 +932,7 @@ TEST(oneline, define_function) {
     const char *ast_filename = "scratch/ast.dot";
     file = fopen(ast_filename, "w");
     ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 999, &buf_len, ast_tree);
+    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);
@@ -942,7 +942,7 @@ TEST(oneline, define_function) {
     const char *sast_filename = "scratch/sast.dot";
     file = fopen(sast_filename, "w");
     ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 999, &buf_len, sast_tree);
+    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
     fputs(buf, file);
     fflush(file);
     fclose(file);

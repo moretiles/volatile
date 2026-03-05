@@ -101,8 +101,6 @@ extern struct vltl_sast_operation vltl_sast_operation_amd64_r13;
 extern struct vltl_sast_operation vltl_sast_operation_amd64_r14;
 extern struct vltl_sast_operation vltl_sast_operation_amd64_r15;
 
-extern const Vltl_asm_register_amd64 vltl_sast_operations_amd64_required_table[VLTL_SAST_OPERATION_KIND_EOF][VLTL_ASM_REGISTER_AMD64_EOF];
-
 // Stringify the operation_kind in src and write it to dest failing if dest_cap is too small to write everything.
 // The number of bytes written, including the null byte, will be placed in *(dest_len)
 int vltl_sast_operation_detokenize(char *dest, size_t dest_cap, size_t *dest_len, const Vltl_sast_operation src);
@@ -175,21 +173,6 @@ int vltl_sast_operation_adopt(
     Vltl_sast_operation *adopt_this
 );
 
-// Protect protect_this from other operations using identical destination operand
-int vltl_sast_operation_protect(
-    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_asm_operand *from_that
-);
-
-// Protect protect_this from parents and lower-indexed siblings using identical destination operand
-int vltl_sast_operation_protect_le(
-    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this, const Vltl_asm_operand *from_that
-);
-
-// Protect protect_this from parents and higher-indexed siblings using identical destination operand
-int vltl_sast_operation_protect_ge(
-    Vltl_sast_tree *tree, Vltl_sast_operation *protect_this
-);
-
 // Mark all in-use registers for a given tree operation
 int vltl_sast_tree_registers_mark(Vltl_sast_tree *tree, Vltl_sast_operation *operation);
 
@@ -205,7 +188,7 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 int vltl_sast_tree_reshape(Vltl_sast_tree *tree);
 
 // Recursive helper function
-int vltl_sast_tree_connect_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation);
+int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_above_here, bool *inuse_below_here);
 
 // Connect an incomplete subtree to form a valid subtree.
 // Converting a Vltl_ast_operation to a subtree of many Vltl_sast_operation will produce incomplete subtrees.

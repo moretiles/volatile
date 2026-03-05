@@ -13,6 +13,12 @@ extern "C" {
 #define IESTACK_CAP_ERRORS (100)
 #define IESTACK_ERROR_STRLEN (250)
 
+#ifdef __cplusplus
+extern thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+#else
+extern _Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+#endif
+
 typedef struct iestack_error {
     int error_code;
     char msg[IESTACK_ERROR_STRLEN];
@@ -39,12 +45,11 @@ int iestack_pop(Iestack *stack, Iestack_error *dest_error);
 #define IESTACK_PUSH(stack, error_code, string) assert(!iestack_push(stack, error_code, string, __FILE__, __LINE__))
 #define IESTACK_PUSHF(stack, error_code, fstring, ...) \
 { \
-    char buf_tmp___[IESTACK_ERROR_STRLEN]; \
     size_t printed_len___ = 0; \
     int ret___ = 0; \
-    buf_tmp___[0] = 0; \
-    BTRC_SNPRINTF(&ret___, &printed_len___, buf_tmp___, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
-    IESTACK_PUSH(stack, error_code, buf_tmp___); \
+    iestack_buffer_for_formatting[0] = 0; \
+    BTRC_SNPRINTF(&ret___, &printed_len___, iestack_buffer_for_formatting, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
+    IESTACK_PUSH(stack, error_code, iestack_buffer_for_formatting); \
 }
 #define IESTACK_RETURN(stack, error_code, string) IESTACK_PUSH(stack, error_code, string); \
 return error_code

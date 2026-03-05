@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+_Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+
 int iestack_error_init(
     Iestack_error *error, int error_code, const char *msg, const char *filename, size_t linenumber
 ) {

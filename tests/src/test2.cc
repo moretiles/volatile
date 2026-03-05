@@ -91,7 +91,7 @@ TEST(file, function_call_one_arg) {
 }
 
 TEST(file, function_with_args) {
-    ASSERT_EQ(3400, function_with_args_main());
+    ASSERT_EQ(3611, function_with_args_main());
     ASSERT_EQ(100, function_with_args_zero());
     ASSERT_EQ(5, function_with_args_one(5));
     ASSERT_EQ(73, function_with_args_two(7, 3));

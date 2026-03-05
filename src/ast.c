@@ -655,6 +655,7 @@ int vltl_ast_operation_adopt(
         // update parent reference
         {
             new_parent->parent = adopt_this->parent;
+            new_parent->belongs_to = adopt_this->belongs_to;
             adopt_this->parent = new_parent;
         }
 
