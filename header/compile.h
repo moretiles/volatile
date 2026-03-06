@@ -33,7 +33,13 @@ void vltl_compile_line_trio_queue_deinit(Vltl_compile_line_trio_queue *queue);
 // Express a sast_operation as an operand (only useful when writing a compiled version of the program)
 int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_operation operation);
 
-// Convert a single sast_operation to a series of assembly instructions and write them to dest.
+// Convert a single sast_operation to a series of instructions
+int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *src);
+
+// Convert a single sast_operation to a series of labels (and maybe instructions)
+int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src);
+
+// Convert a single sast_operation to assembly and write to dest.
 int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src);
 
 // recursive helper function for use by vltl_compile_convert

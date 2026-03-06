@@ -1,0 +1,27 @@
+function else_statement_main ( ) {
+    local a = 500
+    local b = 0
+    local c = 0
+
+    if(a == 100) {
+        b = 1
+    } elif(a == 200) {
+        b = 2
+    } elif(a == 300) {
+        b = 3
+    } elif(a == 400) {
+        b = 4
+    } else {
+        b = 5
+    }
+
+    if(a == 400) {
+        c = 20
+    } elif(a == 500) {
+        c = 30
+    } else {
+        c = 40
+    }
+
+    return b + c
+}

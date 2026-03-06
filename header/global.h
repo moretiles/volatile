@@ -5,6 +5,7 @@
 #include <ds/varena.h>
 #include <ds/nkht.h>
 #include <lang/function.h>
+#include <lang/body.h>
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -45,7 +46,10 @@ typedef struct vltl_global_context {
 
     const char *filename;
     Vltl_lang_function *function;
+    Vltl_lang_body bodies[VLTL_LANG_BODY_CAP];
     size_t line_number;
+
+    size_t indentation_level;
 } Vltl_global_context;
 
 typedef enum vltl_global_register_8086 {

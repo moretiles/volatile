@@ -130,3 +130,16 @@ int iestack_dump(Iestack *stack, FILE *dest) {
 
     return 0;
 }
+
+#ifdef I_LIKE_BAD_IDEAS_A_LOT
+#include <stdio.h>
+void print_int(int i, int e, char *s) {
+    printf("is int!\n");
+}
+void print_bool(bool b, int e, char *s) {
+    printf("is bool!\n");
+}
+void print_hat(struct hat hat, int e, char *s) {
+    printf("is hat!\n");
+}
+#endif

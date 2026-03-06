@@ -43,6 +43,12 @@ test_asm_files += tests/fullpass/simple_comma.bin.S
 test_asm_files += tests/fullpass/function_call_one_arg.bin.S
 test_asm_files += tests/fullpass/function_with_args.bin.S
 test_asm_files += tests/fullpass/function_multilevel.bin.S
+test_asm_files += tests/fullpass/use_scoping.bin.S
+test_asm_files += tests/fullpass/return_using_test_equals.bin.S
+test_asm_files += tests/fullpass/if_statement.bin.S
+test_asm_files += tests/fullpass/elif_statement.bin.S
+test_asm_files += tests/fullpass/else_statement.bin.S
+test_asm_files += tests/fullpass/while_statement.bin.S
 test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################

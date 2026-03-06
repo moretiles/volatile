@@ -1,0 +1,14 @@
+function use_scoping_main ( ) {
+    local b = 5
+    local a = 1
+
+    {
+        local a = 3
+        {
+            local a = 6
+            b = b + a
+        }
+    }
+
+    return b
+}

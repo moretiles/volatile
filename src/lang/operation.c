@@ -30,6 +30,12 @@ Vltl_lang_operation vltl_lang_operation_div = {
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
+Vltl_lang_operation vltl_lang_operation_test_equals = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_TEST_EQUALS,
+    .name = "==",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
 Vltl_lang_operation vltl_lang_operation_comma = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_COMMA,
     .name = ",",
@@ -75,6 +81,30 @@ Vltl_lang_operation vltl_lang_operation_local = {
 Vltl_lang_operation vltl_lang_operation_function = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_FUNCTION,
     .name = "function",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_if = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_IF,
+    .name = "if",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_elif = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_ELIF,
+    .name = "elif",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_else = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_ELSE,
+    .name = "else",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_while = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_WHILE,
+    .name = "while",
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };

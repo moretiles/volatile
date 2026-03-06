@@ -1,0 +1,13 @@
+function elif_statement_main ( ) {
+    local a = 50
+
+    if ( a == 10 ) {
+        a = 2000
+    } elif ( a == 50 ) {
+        a = 3000
+    } elif ( a == 3000 ) {
+        a = 9999999
+    }
+
+    return a
+}

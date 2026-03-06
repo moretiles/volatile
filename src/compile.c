@@ -1,5 +1,6 @@
 #include <ds/iestack.h>
 #include <lang/function.h>
+#include <lang/body.h>
 #include <isa.h>
 #include <compile.h>
 
@@ -75,7 +76,11 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
     case VLTL_SAST_OPERATION_KIND_SUB:
     case VLTL_SAST_OPERATION_KIND_MUL:
     case VLTL_SAST_OPERATION_KIND_DIV:
+    case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
     case VLTL_SAST_OPERATION_KIND_RETURN:
+    case VLTL_SAST_OPERATION_KIND_IF:
+    case VLTL_SAST_OPERATION_KIND_ELIF:
+    case VLTL_SAST_OPERATION_KIND_WHILE:
         *dest = operation.destination;
         break;
     default:
@@ -86,31 +91,243 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
     return 0;
 }
 
-int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
-    int ret = 0;
-    if(dest == NULL || src == NULL) {
-        ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
-            "Arguments are NULL : dest = %p, src = %p!",
-            (void *) dest, (void *) src
+int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
+    size_t label_value = 0;
+    Vltl_asm_operand as_operand = { 0 };
+    Vltl_lang_body_kind body_kind = { 0 };
+    size_t ignore_len = 0;
+    const size_t operand_buf_cap = 99;
+    char src1_operand_buf[99];
+    char src2_operand_buf[99];
+    char dest_operand_buf[99];
+    const char *fstring = NULL;
+
+    VLTL_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
+    VLTL_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
+
+    switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
+        VLTL_SUPPOSE(
+            vltl_global_context.indentation_level < (VLTL_LANG_BODY_CAP + 1),
+            ENOTRECOVERABLE,
+            "Body nesting depth exceeded!"
         );
-        return EINVAL;
+
+        vltl_global_context.indentation_level += 1;
+        VLTL_EXPECT(
+            nkht_init(
+                &(vltl_global_context.bodies[vltl_global_context.indentation_level - 1].local_variables),
+                sizeof(Vltl_lang_local *)
+            ),
+            "Could not initialize hash table for local variables!"
+        );
+
+    label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
+    if(src->parent == NULL) {
+        label_value += VLTL_LANG_BODY_LABEL_BARE_OPEN;
+        body_kind = VLTL_LANG_BODY_KIND_BARE;
+    } else {
+        switch(src->parent->kind){
+        case VLTL_SAST_OPERATION_KIND_FUNCTION:
+            label_value += VLTL_LANG_BODY_LABEL_FUNCTION_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
+            break;
+        case VLTL_SAST_OPERATION_KIND_IF:
+            label_value += VLTL_LANG_BODY_LABEL_IF_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_IF;
+            break;
+        case VLTL_SAST_OPERATION_KIND_ELIF:
+            label_value += VLTL_LANG_BODY_LABEL_ELIF_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_ELIF;
+            break;
+        case VLTL_SAST_OPERATION_KIND_ELSE:
+            label_value += VLTL_LANG_BODY_LABEL_ELSE_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_ELSE;
+            break;
+        case VLTL_SAST_OPERATION_KIND_WHILE:
+            label_value += VLTL_LANG_BODY_LABEL_WHILE_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_WHILE;
+            break;
+        default:
+            VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation owns a body_open operation!");
+            break;
+        }
+    }
+        vltl_global_context.bodies[vltl_global_context.indentation_level - 1].body_kind = body_kind;
+        fprintf(dest, "%lu:\n", label_value);
+
+        break;
+    case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
+        ;
+
+        // TODO: Fully implement functions
+        VLTL_SUPPOSE(vltl_global_context.indentation_level > 0, ENOTRECOVERABLE, "Can't close unopened body!");
+        nkht_deinit(&(vltl_global_context.bodies[vltl_global_context.indentation_level - 1].local_variables));
+        vltl_global_context.indentation_level -= 1;
+        if(vltl_global_context.indentation_level == 0) {
+            label_value = vltl_global_context.indentation_level * VLTL_LANG_BODY_LABEL_ITERATE;
+            VLTL_SUPPOSE(
+                vltl_global_context.bodies[0].body_kind == VLTL_LANG_BODY_KIND_FUNCTION,
+                ENOTRECOVERABLE,
+                "Uhh it looks like something went horribly wrong in connection with this function..."
+            );
+            vltl_lang_function_deinit(vltl_global_context.function);
+            vltl_global_context.function = NULL;
+            label_value += VLTL_LANG_BODY_LABEL_FUNCTION_CLOSE;
+            fprintf(dest, "%lu:\n", label_value);
+        } else {
+            label_value = vltl_global_context.indentation_level * VLTL_LANG_BODY_LABEL_ITERATE;
+            switch(vltl_global_context.bodies[vltl_global_context.indentation_level].body_kind) {
+            case VLTL_LANG_BODY_KIND_IF:
+            case VLTL_LANG_BODY_KIND_ELIF:
+            case VLTL_LANG_BODY_KIND_WHILE:
+                label_value += VLTL_LANG_BODY_LABEL_IFELIFELSE_CLOSE;
+                if(src->parent == NULL) {
+                    fprintf(dest, "%lu:\n", label_value);
+                } else {
+                    fprintf(dest, "jmp %luf\n", label_value);
+                }
+                break;
+            case VLTL_LANG_BODY_KIND_ELSE:
+                label_value += VLTL_LANG_BODY_LABEL_IFELIFELSE_CLOSE;
+                    fprintf(dest, "%lu:\n", label_value);
+                    break;
+            default:
+                break;
+            }
+
+            label_value = vltl_global_context.indentation_level * VLTL_LANG_BODY_LABEL_ITERATE;
+            switch(vltl_global_context.bodies[vltl_global_context.indentation_level].body_kind) {
+            case VLTL_LANG_BODY_KIND_BARE:
+                label_value += VLTL_LANG_BODY_LABEL_BARE_CLOSE;
+                break;
+            case VLTL_LANG_BODY_KIND_IF:
+                label_value += VLTL_LANG_BODY_LABEL_IF_CLOSE;
+                break;
+            case VLTL_LANG_BODY_KIND_ELIF:
+                label_value += VLTL_LANG_BODY_LABEL_ELIF_CLOSE;
+                break;
+            case VLTL_LANG_BODY_KIND_ELSE:
+                label_value += VLTL_LANG_BODY_LABEL_ELIF_CLOSE;
+                break;
+            case VLTL_LANG_BODY_KIND_WHILE:
+                // Unconditional jump to start of loop because this is a loop
+                label_value += VLTL_LANG_BODY_LABEL_WHILE_OPEN;
+                fprintf(dest, "jmp %lub\n", label_value);
+                label_value -= VLTL_LANG_BODY_LABEL_WHILE_OPEN;
+
+                label_value += VLTL_LANG_BODY_LABEL_WHILE_CLOSE;
+                break;
+            case VLTL_LANG_BODY_KIND_FUNCTION:
+                VLTL_RETURN(ENOTRECOVERABLE, "Invalid use of nested function... maybe!");
+                break;
+            default:
+                VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation once owned a body_open operation... maybe!");
+                break;
+            }
+            fprintf(dest, "%lu:\n", label_value);
+        }
+
+        break;
+    case VLTL_SAST_OPERATION_KIND_IF:
+        label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
+        label_value += VLTL_LANG_BODY_LABEL_IF_CLOSE;
+        fstring = "test %s, %s\n"
+                  "\tjz %luf\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        fprintf(
+            dest, fstring, dest_operand_buf, dest_operand_buf, label_value
+        );
+
+        break;
+    case VLTL_SAST_OPERATION_KIND_ELIF:
+        label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
+        label_value += VLTL_LANG_BODY_LABEL_ELIF_CLOSE;
+
+        fstring = "test %s, %s\n"
+                  "\tjz %luf\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        fprintf(
+            dest, fstring, dest_operand_buf, dest_operand_buf, label_value
+        );
+
+        break;
+    case VLTL_SAST_OPERATION_KIND_ELSE:
+        break;
+    case VLTL_SAST_OPERATION_KIND_WHILE:
+        label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
+        label_value += VLTL_LANG_BODY_LABEL_WHILE_CLOSE;
+
+        fstring = "test %s, %s\n"
+                  "\tjz %luf\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        fprintf(
+            dest, fstring, dest_operand_buf, dest_operand_buf, label_value
+        );
+
+        break;
+    case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
+        fstring = "cmp %s, %s\n"
+                              "\tmov %s, 0\n"
+                              "\tmov %s, 1\n"
+                              "\tcmove %s, %s\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *(src->lchild)), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *(src->rchild)), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(src2_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        fprintf(
+            dest, fstring,
+            src1_operand_buf, src2_operand_buf,
+            dest_operand_buf,
+            src2_operand_buf,
+            dest_operand_buf, src2_operand_buf
+        );
+
+        break;
+    default:
+        VLTL_RETURN(EINVAL, "Cannot turn this kind of sast_operation into a label!");
     }
 
-    // only amd64 supported for now
-    if(vltl_global_config.isa != VLTL_ISA_AMD64) {
-        ret = ENOTRECOVERABLE;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
-        return ret;
-    }
+    return 0;
+}
 
-
-    if(!vltl_sast_operation_valid(*src)) {
-        ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "src is invalid!");
-        return EINVAL;
-    }
+int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *src) {
+    int ret = 0;
+    VLTL_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
+    VLTL_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
 
     // handle instruction
     Vltl_asm_instruction as_instruction = { 0 };
@@ -258,6 +475,49 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     return 0;
 }
 
+int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
+    int ret = 0;
+    if(dest == NULL || src == NULL) {
+        ret = EINVAL;
+        IESTACK_PUSHF(
+            &vltl_global_errors, ret,
+            "Arguments are NULL : dest = %p, src = %p!",
+            (void *) dest, (void *) src
+        );
+        return EINVAL;
+    }
+
+    // only amd64 supported for now
+    if(vltl_global_config.isa != VLTL_ISA_AMD64) {
+        ret = ENOTRECOVERABLE;
+        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
+        return ret;
+    }
+
+
+    if(!vltl_sast_operation_valid(*src)) {
+        ret = EINVAL;
+        IESTACK_PUSH(&vltl_global_errors, ret, "src is invalid!");
+        return EINVAL;
+    }
+
+    switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
+    case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_IF:
+    case VLTL_SAST_OPERATION_KIND_ELIF:
+    case VLTL_SAST_OPERATION_KIND_ELSE:
+    case VLTL_SAST_OPERATION_KIND_WHILE:
+    case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
+        return vltl_compile_operation_convert_label(dest, src);
+        break;
+    default:
+        return vltl_compile_operation_convert_instruction(dest, src);
+        break;
+    }
+    return 0;
+}
+
 int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_operation *operation) {
     int ret = 0;
     if(dest == NULL || src == NULL || operation == NULL) {
@@ -293,11 +553,7 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
     // indentation because this must be inside of a function
     fputs("\t", dest);
 
-    ret = vltl_compile_operation_convert(dest, operation);
-    if(ret != 0) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_compile_operation_convert!");
-        return ret;
-    }
+    VLTL_EXPECT(vltl_compile_operation_convert(dest, operation), "Failed to write compiled expression to dest!");
 
     for(size_t i = 0; i < vltl_sast_operation_after_argc(*operation); i++) {
         Vltl_sast_operation *ith_operation = operation->after[i];
@@ -329,6 +585,17 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         // TODO: Fully implement functions
         // Need to figure out how I want to store function and what is associated with it
+        VLTL_SUPPOSE(vltl_global_context.indentation_level == 0, ENOTRECOVERABLE, "Can't open function here!");
+        vltl_global_context.indentation_level = 1;
+        VLTL_EXPECT(
+            nkht_init(
+                &(vltl_global_context.bodies[0].local_variables),
+                sizeof(Vltl_lang_local *)
+            ),
+            "Could not initialize hash table for local variables!"
+        );
+        vltl_global_context.bodies[0].body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
+
         Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
         if(created_function == NULL) {
             ret = ENOMEM;
@@ -450,16 +717,6 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         return 0;
         break;
-    case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
-        // this is a psuedo-instruction
-        ;
-
-        // TODO: Fully implement functions
-        vltl_lang_function_deinit(vltl_global_context.function);
-        vltl_global_context.function = NULL;
-
-        return 0;
-        break;
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
         // this is a psuedo-instruction
         ;
@@ -518,33 +775,72 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             .fields = { (void *) src->root->evaluates_to.as_immediate.value }
         };
 
-        if(src->root->destination.as_unknown == NULL) {
-            ret = EINVAL;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
-            return ret;
-        }
-        ret = vltl_lang_function_local_set(
-                  vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
-                  NULL, created_literal);
-        if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
-        *(child_with_name_of_local) = (Vltl_sast_operation) {
-            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-            .belongs_to = child_with_name_of_local->belongs_to,
-            .parent = child_with_name_of_local->parent,
-            .evaluates_to = (Vltl_asm_operand) {
-                .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                .as_memory = (Vltl_asm_operand_memory) {
-                    .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                    .name = child_with_name_of_local->evaluates_to.as_unknown,
-                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
-                }
+        switch(src->root->destination.kind) {
+        case VLTL_ASM_OPERAND_KIND_MEMORY:
+            if(src->root->destination.as_memory.memory_kind != VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL) {
+                ret = EINVAL;
+                IESTACK_PUSH(
+                    &vltl_global_errors, ret, "Trying to create aliased local for something not a local!"
+                );
+                return ret;
             }
-        };
+            ret = vltl_lang_function_local_set(
+                      vltl_global_context.function, src->root->destination.as_memory.name, &vltl_lang_type_long,
+                      NULL, created_literal
+            );
+            if(ret) {
+                IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                return ret;
+            }
+    
+            Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
+            *(child_with_name_of_local) = (Vltl_sast_operation) {
+                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                .belongs_to = child_with_name_of_local->belongs_to,
+                .parent = child_with_name_of_local->parent,
+                .evaluates_to = (Vltl_asm_operand) {
+                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+                    .as_memory = (Vltl_asm_operand_memory) {
+                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                        .name = child_with_name_of_local->evaluates_to.as_memory.name,
+                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
+                    }
+                }
+            };
+            break;
+        case VLTL_ASM_OPERAND_KIND_UNKNOWN:
+            if(src->root->destination.as_unknown == NULL) {
+                ret = EINVAL;
+                IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                return ret;
+            }
+            ret = vltl_lang_function_local_set(
+                      vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
+                      NULL, created_literal
+            );
+            if(ret) {
+                IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                return ret;
+            }
+    
+            child_with_name_of_local = src->root->lchild->lchild;
+            *(child_with_name_of_local) = (Vltl_sast_operation) {
+                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                .belongs_to = child_with_name_of_local->belongs_to,
+                .parent = child_with_name_of_local->parent,
+                .evaluates_to = (Vltl_asm_operand) {
+                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+                    .as_memory = (Vltl_asm_operand_memory) {
+                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                        .name = child_with_name_of_local->evaluates_to.as_unknown,
+                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
+                    }
+                }
+            };
+            break;
+        default:
+            VLTL_RETURN(EINVAL, "Tried to create invalid local!");
+        }
 
         return vltl_compile_convert_recurse(dest, src, src->root->lchild);
         break;
@@ -615,7 +911,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     }
 
     if(line.token_count == 0) {
-        fprintf(dest, "// line #%lu\n", line_number);
+        fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
         fputs("\n", dest);
         return 0;
     }
@@ -651,7 +947,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     }
 
     // compile
-    fprintf(dest, "// line #%lu\n", line_number);
+    fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
     ret = vltl_compile_convert(dest, &sast_tree);
     fputs("\n", dest);
     if(ret) {
