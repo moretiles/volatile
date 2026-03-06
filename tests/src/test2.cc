@@ -25,6 +25,7 @@ extern "C" {
     long function_with_args_two(long a, long b);
     long function_with_args_three(long a, long b, long c);
     long function_with_args_four(long a, long b, long c, long d);
+    long function_multilevel_main(void);
     long tour_de_force_main(void);
 }
 
@@ -106,6 +107,10 @@ TEST(file, function_with_args) {
         function_with_args_one(5) +
         function_with_args_zero()
     );
+}
+
+TEST(file, function_multilevel) {
+    ASSERT_EQ(32, function_multilevel_main());
 }
 
 TEST(file, tour_de_force) {

@@ -69,6 +69,7 @@ typedef struct vltl_sast_operation {
 typedef struct vltl_sast_tree {
     Vltl_sast_operation *root;
     Vltl_sast_operation *last;
+    bool function_call_on_tree;
 } Vltl_sast_tree;
 
 // Stringify the operation in src and write it to dest failing if dest_cap is too small to write everything.
@@ -186,6 +187,31 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 
 // Reshape a valid subtree into something that can actually be compiled.
 int vltl_sast_tree_reshape(Vltl_sast_tree *tree);
+
+// Helper function for use in resolving destination for sast_operation with destination of kind TBD
+int vltl_sast_tree_connect_resolve_tbd(
+    Vltl_sast_operation *resolve_me, bool *inuse_above_here,
+    const Vltl_asm_register_amd64 *preferred_registers, size_t preferred_registers_cap
+);
+
+// Helper function for use in forcing an operation to be adopted by an operand representing a TBD register
+// Will resolve the TBD register when adopting
+int vltl_sast_tree_connect_adopt_tbd(
+    Vltl_sast_operation *adopt_me, bool *inuse_above_here,
+    const Vltl_asm_register_amd64 *preferred_registers, size_t preferred_registers_cap
+);
+
+// Helper function to protect arguments where index is less than argument_index (parent->arguments[argument_index])
+int vltl_sast_tree_connect_protect_siblings(
+    Vltl_sast_operation *parent, size_t argument_index,
+    bool *inuse_from_parent, bool *inuse_below_parent, bool *inuse_below_child
+);
+
+// Helper function for doing compilation time evaluation of two values, placing result as parent->evaluates_to
+int vltl_sast_tree_connect_evaluate_two(
+    Vltl_sast_operation *parent, Vltl_sast_operation *child_one, Vltl_sast_operation *child_two,
+    uint64_t math_function(const uint64_t arg_one, const uint64_t arg_two)
+);
 
 // Recursive helper function
 int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_above_here, bool *inuse_below_here);

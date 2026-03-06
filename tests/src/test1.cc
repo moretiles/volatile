@@ -221,6 +221,14 @@ TEST(sast, operation_insert_and_compile) {
 
 TEST(sast, operation_connect_and_compile) {
     vltl_global_init();
+
+    // Needs to assume it is in main
+    Vltl_lang_function *created_function = (Vltl_lang_function *) varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+    ASSERT_NE(nullptr, created_function);
+    ASSERT_FALSE(vltl_lang_function_init(created_function, "main"));
+    ASSERT_FALSE(nkht_set(vltl_global_table_functions, "main", &created_function));
+    vltl_global_context.function = created_function;
+
     Vltl_asm_operand operand_immediate_3 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
@@ -574,8 +582,22 @@ TEST(lexer, line_convert_simple) {
 }
 
 namespace {
-TEST(oneline, addsub) {
-    vltl_global_init();
+class OnelineFixture1 : public testing::Test {
+protected:
+    void SetUp() override {
+        vltl_global_init();
+
+        // Needs to assume it is in main
+        Vltl_lang_function *created_function = (Vltl_lang_function *) varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        ASSERT_NE(nullptr, created_function);
+        ASSERT_FALSE(vltl_lang_function_init(created_function, "main"));
+        ASSERT_FALSE(nkht_set(vltl_global_table_functions, "main", &created_function));
+        vltl_global_context.function = created_function;
+    }
+};
+
+
+TEST_F(OnelineFixture1, addsub) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "3 + 4 - 2";
@@ -623,8 +645,7 @@ TEST(oneline, addsub) {
     fclose(file);
 }
 
-TEST(oneline, return_addsub) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, return_addsub) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "return 3 + 4 - 2";
@@ -670,8 +691,7 @@ TEST(oneline, return_addsub) {
     fclose(file);
 }
 
-TEST(oneline, equals_global) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, equals_global) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "a = 6 + 7";
@@ -719,8 +739,7 @@ TEST(oneline, equals_global) {
     fclose(file);
 }
 
-TEST(oneline, define_globals) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, define_globals) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "global a = 5";
@@ -768,8 +787,7 @@ TEST(oneline, define_globals) {
     fclose(file);
 }
 
-TEST(oneline, define_constants) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, define_constants) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "constant one = 1";
@@ -817,8 +835,7 @@ TEST(oneline, define_constants) {
     fclose(file);
 }
 
-TEST(oneline, define_global) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, define_global) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "global abc = 1 + 2 + 3";
@@ -865,8 +882,7 @@ TEST(oneline, define_global) {
     ASSERT_NE(nullptr, check_if_exists);
 }
 
-TEST(oneline, define_constant) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, define_constant) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "constant running_out_of_variable_names = 3 + 4 + 5";
@@ -913,8 +929,7 @@ TEST(oneline, define_constant) {
     ASSERT_NE(nullptr, check_if_exists);
 }
 
-TEST(oneline, define_function) {
-    vltl_global_init();
+TEST_F(OnelineFixture1, define_function) {
     char buf[9999];
     size_t buf_len = 0;
     const char *mathline = "function just_return_3 1 {\n"
@@ -1082,6 +1097,13 @@ TEST(fullpass, function_with_args) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/function_with_args.bin";
     char src_filename[] = "tests/fullpass/function_with_args.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, function_multilevel) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/function_multilevel.bin";
+    char src_filename[] = "tests/fullpass/function_multilevel.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
