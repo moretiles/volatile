@@ -1,0 +1,3 @@
+function return_using_test_equals_main ( ) {
+    return 100 == 100
+}

@@ -90,6 +90,24 @@ return error_code
 #define VLTL_SUPPOSE(bool_expr, error_code, string) IESTACK_SUPPOSE(&vltl_global_errors, bool_expr, error_code, string)
 #define VLTL_SUPPOSEF(bool_expr, error_code, fstring, ...) IESTACK_SUPPOSEF(&vltl_global_errors, bool_expr, error_code, fstring, __VA_ARGS__)
 
+#ifdef I_LIKE_BAD_IDEAS_A_LOT
+void print_int(int i, int e, char *s);
+void print_bool(bool b, int e, char *s);
+struct hat {
+    int a;
+    int b;
+};
+void print_hat(struct hat h, int e, char *s);
+#define FAIL_OPEN(expr, error_code, string) do { \
+    auto ___eval_expr = expr; \
+    _Generic((___eval_expr), \
+        bool: print_bool, \
+        int: print_int, \
+        struct hat: print_hat \
+    )(___eval_expr, error_code, string); \
+} while(0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

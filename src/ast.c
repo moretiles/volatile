@@ -137,6 +137,9 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_SUB:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_4;
         break;
+    case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_7;
+        break;
     case VLTL_AST_OPERATION_KIND_TYPEAS:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_13;
         break;
@@ -152,6 +155,10 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_GLOBAL:
     case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_IF:
+    case VLTL_AST_OPERATION_KIND_ELIF:
+    case VLTL_AST_OPERATION_KIND_ELSE:
+    case VLTL_AST_OPERATION_KIND_WHILE:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_19;
         break;
     default:
@@ -210,6 +217,9 @@ int vltl_ast_operation_kind_detokenize(
     case VLTL_AST_OPERATION_KIND_DIV:
         src_string = "/";
         break;
+    case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
+        src_string = "==";
+        break;
     case VLTL_AST_OPERATION_KIND_TYPEAS:
         src_string = ":";
         break;
@@ -239,6 +249,18 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         src_string = "function";
+        break;
+    case VLTL_AST_OPERATION_KIND_IF:
+        src_string = "if";
+        break;
+    case VLTL_AST_OPERATION_KIND_ELIF:
+        src_string = "elif";
+        break;
+    case VLTL_AST_OPERATION_KIND_ELSE:
+        src_string = "else";
+        break;
+    case VLTL_AST_OPERATION_KIND_WHILE:
+        src_string = "while";
         break;
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
         src_string = "{";
@@ -431,6 +453,7 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_SUB:
     case VLTL_AST_OPERATION_KIND_MUL:
     case VLTL_AST_OPERATION_KIND_DIV:
+    case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
     case VLTL_AST_OPERATION_KIND_COMMA:
     case VLTL_AST_OPERATION_KIND_CSV:
     case VLTL_AST_OPERATION_KIND_TYPEAS:
@@ -441,6 +464,10 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_CONSTANT:
     case VLTL_AST_OPERATION_KIND_RETURN:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_IF:
+    case VLTL_AST_OPERATION_KIND_ELIF:
+    case VLTL_AST_OPERATION_KIND_ELSE:
+    case VLTL_AST_OPERATION_KIND_WHILE:
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
         break;
@@ -492,6 +519,9 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
     case VLTL_AST_OPERATION_KIND_DIV:
         return 2;
         break;
+    case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
+        return 2;
+        break;
     case VLTL_AST_OPERATION_KIND_TYPEAS:
         return 2;
         break;
@@ -521,6 +551,18 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         return 3;
+        break;
+    case VLTL_AST_OPERATION_KIND_IF:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_ELIF:
+        return 3;
+        break;
+    case VLTL_AST_OPERATION_KIND_ELSE:
+        return 2;
+        break;
+    case VLTL_AST_OPERATION_KIND_WHILE:
+        return 2;
         break;
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
         return 0;
@@ -981,6 +1023,42 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                     return ret;
                 }
                 break;
+            case VLTL_LANG_OPERATION_KIND_IF:
+                operation_kind = VLTL_AST_OPERATION_KIND_IF;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_ELIF:
+                operation_kind = VLTL_AST_OPERATION_KIND_ELIF;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_ELSE:
+                operation_kind = VLTL_AST_OPERATION_KIND_ELSE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_WHILE:
+                operation_kind = VLTL_AST_OPERATION_KIND_WHILE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
             case VLTL_LANG_OPERATION_KIND_BODY_OPEN:
                 operation_kind = VLTL_AST_OPERATION_KIND_BODY_OPEN;
 
@@ -1046,6 +1124,15 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 break;
             case VLTL_LANG_OPERATION_KIND_DIV:
                 operation_kind = VLTL_AST_OPERATION_KIND_DIV;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_TEST_EQUALS:
+                operation_kind = VLTL_AST_OPERATION_KIND_TEST_EQUALS;
 
                 result_type = &vltl_lang_type_long;
                 ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);

@@ -11,6 +11,8 @@
 #include <sast.c>
 #include <siphash.c>
 
+#include <ds/iestack.h>
+
 int main(void) {
     return 0;
 }

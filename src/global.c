@@ -420,6 +420,7 @@ int vltl_global_table_operations_init(void) {
     vltl_global_table_operations_init_helper(&vltl_lang_operation_sub);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_mul);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_div);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_test_equals);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_comma);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_typeas);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_grouping_open);
@@ -428,6 +429,10 @@ int vltl_global_table_operations_init(void) {
     vltl_global_table_operations_init_helper(&vltl_lang_operation_constant);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_local);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_function);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_if);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_elif);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_else);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_while);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_body_open);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_body_close);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_return);

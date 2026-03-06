@@ -26,6 +26,12 @@ extern "C" {
     long function_with_args_three(long a, long b, long c);
     long function_with_args_four(long a, long b, long c, long d);
     long function_multilevel_main(void);
+    long use_scoping_main(void);
+    long return_using_test_equals_main(void);
+    long if_statement_main(void);
+    long elif_statement_main(void);
+    long else_statement_main(void);
+    long while_statement_main(void);
     long tour_de_force_main(void);
 }
 
@@ -111,6 +117,30 @@ TEST(file, function_with_args) {
 
 TEST(file, function_multilevel) {
     ASSERT_EQ(32, function_multilevel_main());
+}
+
+TEST(file, use_scoping) {
+    ASSERT_EQ(11, use_scoping_main());
+}
+
+TEST(file, return_using_test_equals) {
+    ASSERT_EQ(1, return_using_test_equals_main());
+}
+
+TEST(file, if_statement) {
+    ASSERT_EQ(7832, if_statement_main());
+}
+
+TEST(file, elif_statement) {
+    ASSERT_EQ(3000, elif_statement_main());
+}
+
+TEST(file, else_statement) {
+    ASSERT_EQ(35, else_statement_main());
+}
+
+TEST(file, while_statement) {
+    ASSERT_EQ(990, while_statement_main());
 }
 
 TEST(file, tour_de_force) {

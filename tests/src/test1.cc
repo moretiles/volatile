@@ -1107,6 +1107,48 @@ TEST(fullpass, function_multilevel) {
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
+TEST(fullpass, use_scoping) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/use_scoping.bin";
+    char src_filename[] = "tests/fullpass/use_scoping.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, return_using_test_equals) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/return_using_test_equals.bin";
+    char src_filename[] = "tests/fullpass/return_using_test_equals.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, if_statement_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/if_statement.bin";
+    char src_filename[] = "tests/fullpass/if_statement.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, elif_statement_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/elif_statement.bin";
+    char src_filename[] = "tests/fullpass/elif_statement.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, else_statement_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/else_statement.bin";
+    char src_filename[] = "tests/fullpass/else_statement.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, while_statement_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/while_statement.bin";
+    char src_filename[] = "tests/fullpass/while_statement.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
 TEST(fullpass, tour_de_force) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/tour_de_force.bin";
