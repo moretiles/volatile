@@ -42,6 +42,7 @@ test_asm_files += tests/fullpass/grouping_beats_multiplication.bin.S
 test_asm_files += tests/fullpass/simple_comma.bin.S
 test_asm_files += tests/fullpass/function_call_one_arg.bin.S
 test_asm_files += tests/fullpass/function_with_args.bin.S
+test_asm_files += tests/fullpass/function_multilevel.bin.S
 test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################
