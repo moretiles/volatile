@@ -1,0 +1,7 @@
+function index_into_main ( ) {
+    local a = 3
+    local b = 2
+    local c = 1
+
+    return c[0] + c[1] + c[2]
+}

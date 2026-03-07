@@ -2,7 +2,7 @@ function while_statement_main ( ) {
     local a = 30
     local b = 0
 
-    while ( a ) {
+    while(a) {
         b = b + 33
         a = a - 1
     }

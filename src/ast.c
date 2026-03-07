@@ -124,10 +124,16 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
+    case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
+    case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_0;
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_1;
+        break;
+    case VLTL_AST_OPERATION_KIND_ADDRESS:
+    case VLTL_AST_OPERATION_KIND_INDIRECTION:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_2;
         break;
     case VLTL_AST_OPERATION_KIND_MUL:
     case VLTL_AST_OPERATION_KIND_DIV:
@@ -196,6 +202,12 @@ int vltl_ast_operation_kind_detokenize(
     }
 
     switch(src) {
+    case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
+        src_string = "[";
+        break;
+    case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
+        src_string = "]";
+        break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
         src_string = "(";
         break;
@@ -204,6 +216,12 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
         src_string = "CALL";
+        break;
+    case VLTL_AST_OPERATION_KIND_ADDRESS:
+        src_string = "&";
+        break;
+    case VLTL_AST_OPERATION_KIND_INDIRECTION:
+        src_string = "@";
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
         src_string = "+";
@@ -446,9 +464,13 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
 
 bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind) {
     switch(operation_kind) {
+    case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
+    case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
     case VLTL_AST_OPERATION_KIND_CALL:
+    case VLTL_AST_OPERATION_KIND_ADDRESS:
+    case VLTL_AST_OPERATION_KIND_INDIRECTION:
     case VLTL_AST_OPERATION_KIND_ADD:
     case VLTL_AST_OPERATION_KIND_SUB:
     case VLTL_AST_OPERATION_KIND_MUL:
@@ -498,6 +520,12 @@ size_t vltl_ast_operation_argc(const Vltl_ast_operation operation) {
 
 size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
     switch(operation.kind) {
+    case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
+        return 3;
+        break;
+    case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
+        return 0;
+        break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
         return 2;
         break;
@@ -505,6 +533,12 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         return 0;
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
+        return 1;
+        break;
+    case VLTL_AST_OPERATION_KIND_ADDRESS:
+        return 1;
+        break;
+    case VLTL_AST_OPERATION_KIND_INDIRECTION:
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
@@ -788,6 +822,7 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
 
     if(
         vltl_ast_operation_argc(*pushed) == vltl_ast_operation_expected_argc(*(pushed)) ||
+        pushed->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN ||
         pushed->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN
     ) {
         bool done = false;
@@ -862,17 +897,20 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             break;
         }
 
-        const bool parent_is_hungry_grouping_open = (
-                possible_target->parent->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN &&
+        const bool parent_is_hungry_grouping_or_index_open = (
+                (
+                    possible_target->parent->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN ||
+                    possible_target->parent->kind == VLTL_AST_OPERATION_KIND_GROUPING_OPEN
+                ) &&
                 vltl_ast_operation_argc(*possible_target->parent) < vltl_ast_operation_expected_argc(*(possible_target->parent))
             );
 
-        if(parent_lower_than_pushed && !parent_is_hungry_grouping_open) {
+        if(parent_lower_than_pushed && !parent_is_hungry_grouping_or_index_open) {
             // always need to travel up because cannot insert here
         } else {
             need_to_displace = true;
 
-            if(!parent_lower_than_pushed || parent_is_hungry_grouping_open) {
+            if(!parent_lower_than_pushed || parent_is_hungry_grouping_or_index_open) {
                 target = possible_target;
                 break;
             }
@@ -1088,6 +1126,42 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 break;
             case VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE:
                 operation_kind = VLTL_AST_OPERATION_KIND_GROUPING_CLOSE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_INDEX_OPEN:
+                operation_kind = VLTL_AST_OPERATION_KIND_INDEX_OPEN;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_INDEX_CLOSE:
+                operation_kind = VLTL_AST_OPERATION_KIND_INDEX_CLOSE;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_ADDRESS:
+                operation_kind = VLTL_AST_OPERATION_KIND_ADDRESS;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_INDIRECTION:
+                operation_kind = VLTL_AST_OPERATION_KIND_INDIRECTION;
 
                 result_type = &vltl_lang_type_long;
                 ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);

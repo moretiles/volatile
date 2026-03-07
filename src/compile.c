@@ -71,8 +71,12 @@ int vltl_compile_operation_operandify(Vltl_asm_operand *dest, const Vltl_sast_op
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
     case VLTL_SAST_OPERATION_KIND_COMMA:
     case VLTL_SAST_OPERATION_KIND_LOAD:
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_ADD:
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_LEA:
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
     case VLTL_SAST_OPERATION_KIND_SUB:
     case VLTL_SAST_OPERATION_KIND_MUL:
     case VLTL_SAST_OPERATION_KIND_DIV:
@@ -122,37 +126,37 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
             "Could not initialize hash table for local variables!"
         );
 
-    label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
-    if(src->parent == NULL) {
-        label_value += VLTL_LANG_BODY_LABEL_BARE_OPEN;
-        body_kind = VLTL_LANG_BODY_KIND_BARE;
-    } else {
-        switch(src->parent->kind){
-        case VLTL_SAST_OPERATION_KIND_FUNCTION:
-            label_value += VLTL_LANG_BODY_LABEL_FUNCTION_OPEN;
-            body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
-            break;
-        case VLTL_SAST_OPERATION_KIND_IF:
-            label_value += VLTL_LANG_BODY_LABEL_IF_OPEN;
-            body_kind = VLTL_LANG_BODY_KIND_IF;
-            break;
-        case VLTL_SAST_OPERATION_KIND_ELIF:
-            label_value += VLTL_LANG_BODY_LABEL_ELIF_OPEN;
-            body_kind = VLTL_LANG_BODY_KIND_ELIF;
-            break;
-        case VLTL_SAST_OPERATION_KIND_ELSE:
-            label_value += VLTL_LANG_BODY_LABEL_ELSE_OPEN;
-            body_kind = VLTL_LANG_BODY_KIND_ELSE;
-            break;
-        case VLTL_SAST_OPERATION_KIND_WHILE:
-            label_value += VLTL_LANG_BODY_LABEL_WHILE_OPEN;
-            body_kind = VLTL_LANG_BODY_KIND_WHILE;
-            break;
-        default:
-            VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation owns a body_open operation!");
-            break;
+        label_value = (vltl_global_context.indentation_level - 1) * VLTL_LANG_BODY_LABEL_ITERATE;
+        if(src->parent == NULL) {
+            label_value += VLTL_LANG_BODY_LABEL_BARE_OPEN;
+            body_kind = VLTL_LANG_BODY_KIND_BARE;
+        } else {
+            switch(src->parent->kind) {
+            case VLTL_SAST_OPERATION_KIND_FUNCTION:
+                label_value += VLTL_LANG_BODY_LABEL_FUNCTION_OPEN;
+                body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
+                break;
+            case VLTL_SAST_OPERATION_KIND_IF:
+                label_value += VLTL_LANG_BODY_LABEL_IF_OPEN;
+                body_kind = VLTL_LANG_BODY_KIND_IF;
+                break;
+            case VLTL_SAST_OPERATION_KIND_ELIF:
+                label_value += VLTL_LANG_BODY_LABEL_ELIF_OPEN;
+                body_kind = VLTL_LANG_BODY_KIND_ELIF;
+                break;
+            case VLTL_SAST_OPERATION_KIND_ELSE:
+                label_value += VLTL_LANG_BODY_LABEL_ELSE_OPEN;
+                body_kind = VLTL_LANG_BODY_KIND_ELSE;
+                break;
+            case VLTL_SAST_OPERATION_KIND_WHILE:
+                label_value += VLTL_LANG_BODY_LABEL_WHILE_OPEN;
+                body_kind = VLTL_LANG_BODY_KIND_WHILE;
+                break;
+            default:
+                VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation owns a body_open operation!");
+                break;
+            }
         }
-    }
         vltl_global_context.bodies[vltl_global_context.indentation_level - 1].body_kind = body_kind;
         fprintf(dest, "%lu:\n", label_value);
 
@@ -190,8 +194,8 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
                 break;
             case VLTL_LANG_BODY_KIND_ELSE:
                 label_value += VLTL_LANG_BODY_LABEL_IFELIFELSE_CLOSE;
-                    fprintf(dest, "%lu:\n", label_value);
-                    break;
+                fprintf(dest, "%lu:\n", label_value);
+                break;
             default:
                 break;
             }
@@ -286,9 +290,9 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
         break;
     case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
         fstring = "cmp %s, %s\n"
-                              "\tmov %s, 0\n"
-                              "\tmov %s, 1\n"
-                              "\tcmove %s, %s\n";
+                  "\tmov %s, 0\n"
+                  "\tmov %s, 1\n"
+                  "\tcmove %s, %s\n";
 
         VLTL_EXPECT(
             vltl_compile_operation_operandify(&as_operand, *(src->lchild)), "Could not operandify!"
@@ -356,6 +360,18 @@ int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *
         case VLTL_SAST_OPERATION_KIND_LOAD:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
             as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_MOV;
+            break;
+        case VLTL_SAST_OPERATION_KIND_LEA:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_LEA;
+            break;
+        case VLTL_SAST_OPERATION_KIND_ADDRESS:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_INC;
+            break;
+        case VLTL_SAST_OPERATION_KIND_INDIRECTION:
+            as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
+            as_instruction.as_amd64 = VLTL_ASM_INSTRUCTION_AMD64_DEC;
             break;
         case VLTL_SAST_OPERATION_KIND_ADD:
             as_instruction.instruction_kind = VLTL_ASM_INSTRUCTION_KIND_AMD64;
@@ -501,6 +517,14 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         return EINVAL;
     }
 
+    Vltl_asm_operand as_operand = { 0 };
+    size_t ignore_len = 0;
+    const size_t operand_buf_cap = 99;
+    char dest_operand_buf[99];
+    char src1_operand_buf[99];
+    char src2_operand_buf[99];
+    const char *fstring = NULL;
+        
     switch(src->kind) {
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
@@ -510,6 +534,57 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     case VLTL_SAST_OPERATION_KIND_WHILE:
     case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
         return vltl_compile_operation_convert_label(dest, src);
+        break;
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
+        fstring = "mov %s, %s\n"
+                  "\tmov %s, [%s]\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src->arguments[0]), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+
+        fprintf(
+            dest, fstring,
+            dest_operand_buf, src1_operand_buf, dest_operand_buf, dest_operand_buf
+        );
+        break;
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+        fstring = "mov %s, [%s + 8 * %s + 0]\n";
+
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src->arguments[1]), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+        VLTL_EXPECT(
+            vltl_compile_operation_operandify(&as_operand, *src->arguments[3]), "Could not operandify!"
+        );
+        VLTL_EXPECT(
+            vltl_asm_operand_detokenize(src2_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
+        );
+
+        fprintf(
+            dest, fstring,
+            dest_operand_buf, src1_operand_buf, src2_operand_buf, dest_operand_buf, dest_operand_buf
+        );
+        break;
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
         break;
     default:
         return vltl_compile_operation_convert_instruction(dest, src);
@@ -787,12 +862,12 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             ret = vltl_lang_function_local_set(
                       vltl_global_context.function, src->root->destination.as_memory.name, &vltl_lang_type_long,
                       NULL, created_literal
-            );
+                  );
             if(ret) {
                 IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                 return ret;
             }
-    
+
             Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
             *(child_with_name_of_local) = (Vltl_sast_operation) {
                 .kind = VLTL_SAST_OPERATION_KIND_EVAL,
@@ -803,7 +878,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                     .as_memory = (Vltl_asm_operand_memory) {
                         .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                         .name = child_with_name_of_local->evaluates_to.as_memory.name,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
+                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
                     }
                 }
             };
@@ -817,12 +892,12 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             ret = vltl_lang_function_local_set(
                       vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
                       NULL, created_literal
-            );
+                  );
             if(ret) {
                 IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                 return ret;
             }
-    
+
             child_with_name_of_local = src->root->lchild->lchild;
             *(child_with_name_of_local) = (Vltl_sast_operation) {
                 .kind = VLTL_SAST_OPERATION_KIND_EVAL,
@@ -833,7 +908,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                     .as_memory = (Vltl_asm_operand_memory) {
                         .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                         .name = child_with_name_of_local->evaluates_to.as_unknown,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64
+                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
                     }
                 }
             };

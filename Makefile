@@ -49,6 +49,8 @@ test_asm_files += tests/fullpass/if_statement.bin.S
 test_asm_files += tests/fullpass/elif_statement.bin.S
 test_asm_files += tests/fullpass/else_statement.bin.S
 test_asm_files += tests/fullpass/while_statement.bin.S
+test_asm_files += tests/fullpass/address_indirection.bin.S
+test_asm_files += tests/fullpass/index_into.bin.S
 test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################
