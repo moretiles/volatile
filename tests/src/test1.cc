@@ -50,27 +50,27 @@ TEST(global, registers_use_and_reset) {
 namespace {
 int add_2(int *dest, int *src1, int *src2) {
     if(dest == NULL || src1 == NULL || src2 == NULL) {
-        IESTACK_PUSHF(
-            &vltl_global_errors,
+        IESTACK_PUSHF2(
+            vltl_global_errors,
             EINVAL, "provided pointers are NULL : dest = %p, src1 = %p, src2 = %p",
             (void *) dest, (void *) src1, (void *) src2
         );
 
-        iestack_dump(&vltl_global_errors, stdout);
+        iestack_dump(vltl_global_errors, stdout);
         return EINVAL;
     }
 
     if(*src1 < 0) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "argument a is negative!");
+        IESTACK_PUSH2(vltl_global_errors, EINVAL, "argument a is negative!");
 
-        iestack_dump(&vltl_global_errors, stdout);
+        iestack_dump(vltl_global_errors, stdout);
         return EINVAL;
     }
 
     if(*src2 < 0) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "argument b is negative!");
+        IESTACK_PUSH2(vltl_global_errors, EINVAL, "argument b is negative!");
 
-        iestack_dump(&vltl_global_errors, stdout);
+        iestack_dump(vltl_global_errors, stdout);
         return EINVAL;
     }
 
@@ -79,27 +79,17 @@ int add_2(int *dest, int *src1, int *src2) {
 }
 
 int baz(void) {
-    IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "bad from baz");
-
-    return ENOTRECOVERABLE;
+    IESTACK_RETURN2(vltl_global_errors, ENOTRECOVERABLE, "bad from baz");
 }
 
 int bar(void) {
-    int ret = baz();
-    if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "bad from bar");
-
-        return ret;
-    }
+    IESTACK_HANDLE_CALLBACK(baz(), puts("callback for bad from bar!"), "bad from bar!");
 
     return 0;
 }
 
 int foo(void) {
-    int ret = bar();
-    if(ret) {
-        IESTACK_RETURN(&vltl_global_errors, EINVAL, "bad from foo");
-    }
+    IESTACK_HANDLE_CALLBACK(bar(), puts("callback for bad from foo!"), "bad from foo!");
 
     return 0;
 }
@@ -118,7 +108,7 @@ TEST(ds, ierror_simple) {
     ASSERT_TRUE(add_2(&c, NULL, &b));
 
     ASSERT_TRUE(foo());
-    iestack_dump(&vltl_global_errors, stdout);
+    iestack_dump(vltl_global_errors, stdout);
 }
 }
 

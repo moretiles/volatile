@@ -39,8 +39,8 @@ int vltl_lexer_token_init(
 int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
     int ret = 0;
     if(dest == NULL || src == NULL) {
-        IESTACK_PUSHF(
-            &vltl_global_errors, EINVAL,
+        IESTACK_PUSHF2(
+            vltl_global_errors, EINVAL,
             "Argument pointer is null : dest = %p, src = %p",
             (void *) dest, (void *) src
         );
@@ -60,8 +60,8 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
     bool done = false;
     while(!done) {
         if(current_token_index >= VLTL_LEXER_LINE_TOKENS_MAX) {
-            IESTACK_PUSHF(
-                &vltl_global_errors, EXFULL,
+            IESTACK_PUSHF2(
+                vltl_global_errors, EXFULL,
                 "The lexer has processed %lu tokens! Unable to continue!", VLTL_LEXER_LINE_TOKENS_MAX
             );
             return EXFULL;
@@ -78,7 +78,7 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
         } else if(ret == 0) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure!");
             return ret;
         }
 
@@ -86,7 +86,7 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
                                           &vltl_global_allocator, end_of_current_line - start_of_current_line + 1
                                       );
         if(memory_for_this_token == NULL) {
-            IESTACK_PUSH(&vltl_global_errors, ENOMEM, "Unable to allocate memory for copy of token substring!");
+            IESTACK_PUSH2(vltl_global_errors, ENOMEM, "Unable to allocate memory for copy of token substring!");
             return ENOMEM;
         }
 
@@ -105,7 +105,7 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
                   &(dest->tokens[current_token_index++]), memory_for_this_token, end_of_current_line - start_of_current_line, presumed_token_kind
               );
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure!");
             return ret;
         }
     }
@@ -120,8 +120,8 @@ int vltl_lexer_token_chomp(
 ) {
     size_t start_of_token = 0, end_of_token = 0;
     if(start_of_next_token == NULL || end_of_next_token == NULL || presumed_token_kind == NULL || line == NULL) {
-        IESTACK_PUSHF(
-            &vltl_global_errors, EINVAL,
+        IESTACK_PUSHF2(
+            vltl_global_errors, EINVAL,
             "Arguments are NULL"
             " : "
             "start_of_next_token = %p, end_of_next_token = %p, presumed_token_kind = %p, line = %p\n",
@@ -233,7 +233,7 @@ int vltl_lexer_token_chomp(
             case '\'':
             case '.':
                 // not supported yet
-                IESTACK_PUSH(&vltl_global_errors, EINVAL, "Unsupported literal!");
+                IESTACK_PUSH2(vltl_global_errors, EINVAL, "Unsupported literal!");
                 return EINVAL;
                 break;
             case '0':
@@ -398,7 +398,7 @@ int vltl_lexer_token_chomp(
                 break;
             }
         } else {
-            IESTACK_PUSH(&vltl_global_errors, EINVAL, "No idea what kind of token this might be!");
+            IESTACK_PUSH2(vltl_global_errors, EINVAL, "No idea what kind of token this might be!");
             return EINVAL;
         }
     }
@@ -412,8 +412,8 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
     char tmp[tmp_cap];
 
     if(dest == NULL || src == NULL) {
-        IESTACK_PUSHF(
-            &vltl_global_errors, EINVAL,
+        IESTACK_PUSHF2(
+            vltl_global_errors, EINVAL,
             "Arguments are invalid : dest = %p, src = %p!",
             (void *) dest, (void *) src
         );
@@ -421,17 +421,17 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
     }
 
     if(src_len == 0) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "Length of src string is 0!");
+        IESTACK_PUSH2(vltl_global_errors, EINVAL, "Length of src string is 0!");
         return EINVAL;
     }
 
     if(!vltl_lang_token_kind_valid(token_kind)) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "Invalid token kind!");
+        IESTACK_PUSH2(vltl_global_errors, EINVAL, "Invalid token kind!");
         return EINVAL;
     }
 
     if((src_len - 1) > tmp_cap) {
-        IESTACK_PUSH(&vltl_global_errors, EINVAL, "The src string is far too long!");
+        IESTACK_PUSH2(vltl_global_errors, EINVAL, "The src string is far too long!");
         return EINVAL;
     }
 
@@ -463,8 +463,8 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
 
             return 0;
         } else if(token_kind == VLTL_LANG_TOKEN_KIND_OPERATION) {
-            IESTACK_PUSHF(
-                &vltl_global_errors, EINVAL,
+            IESTACK_PUSHF2(
+                vltl_global_errors, EINVAL,
                 "Unable to find operation named %s when doing lookup!",
                 tmp
             );
@@ -472,8 +472,8 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSHF(
-                &vltl_global_errors, EINVAL,
+            IESTACK_PUSHF2(
+                vltl_global_errors, EINVAL,
                 "Unable to find operation named %s when doing lookup!",
                 tmp
             );
@@ -492,7 +492,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
     }
@@ -508,7 +508,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
     }
@@ -525,7 +525,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
             } else if(ret == ENODATA) {
                 // keep going
             } else {
-                IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+                IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
                 return ENOTRECOVERABLE;
             }
         }
@@ -542,7 +542,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
     }
@@ -558,7 +558,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
     }
@@ -574,7 +574,7 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
         } else if(ret == ENODATA) {
             // keep going
         } else {
-            IESTACK_PUSH(&vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
+            IESTACK_PUSH2(vltl_global_errors, ENOTRECOVERABLE, "Unexpected failure!");
             return ENOTRECOVERABLE;
         }
     }

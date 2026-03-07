@@ -4,6 +4,7 @@
 #include <assert.h>
 
 _Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+_Thread_local Iestack **iestack_global_errors;
 
 int iestack_error_init(
     Iestack_error *error, int error_code, const char *msg, const char *filename, size_t linenumber
@@ -40,6 +41,22 @@ void iestack_error_deinit(Iestack_error *error) {
     return;
 }
 
+Iestack *iestack_create() {
+    Iestack *created_here = malloc(sizeof(Iestack));
+    if(created_here == NULL) {
+        return NULL;
+    }
+
+    int ret = iestack_init(created_here);
+    if(ret) {
+        free(created_here);
+        created_here = NULL;
+        return NULL;
+    }
+
+    return created_here;
+}
+
 int iestack_init(Iestack *stack) {
     if(stack == NULL) {
         return EINVAL;
@@ -64,6 +81,11 @@ void iestack_deinit(Iestack *stack) {
     }
 
     return;
+}
+
+void iestack_destroy(Iestack *stack) {
+    iestack_deinit(stack);
+    free(stack);
 }
 
 int iestack_push(Iestack *stack, int error_code, const char *msg, const char *filename, size_t linenumber) {

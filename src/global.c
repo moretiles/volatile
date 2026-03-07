@@ -17,7 +17,7 @@ Vltl_global_config vltl_global_config = { 0 };
 Vltl_global_context vltl_global_context = { 0 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
-Iestack vltl_global_errors = { 0 };
+Iestack *vltl_global_errors = NULL;
 
 Nkht *vltl_global_table_constants = NULL;
 Nkht *vltl_global_table_globals = NULL;
@@ -313,11 +313,13 @@ int vltl_global_allocator_init(void) {
 }
 
 int vltl_global_errors_init(void) {
-    if(vltl_global_errors.error_stack != NULL) {
-        iestack_deinit(&vltl_global_errors);
+    iestack_global_errors = &vltl_global_errors;
+    if(vltl_global_errors == NULL) {
+        iestack_destroy(vltl_global_errors);
     }
 
-    assert(!iestack_init(&vltl_global_errors));
+    vltl_global_errors = iestack_create();
+    assert(vltl_global_errors != NULL);
 
     return 0;
 }

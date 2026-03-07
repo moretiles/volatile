@@ -13,12 +13,6 @@ extern "C" {
 #define IESTACK_CAP_ERRORS (100)
 #define IESTACK_ERROR_STRLEN (250)
 
-#ifdef __cplusplus
-extern thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
-#else
-extern _Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
-#endif
-
 typedef struct iestack_error {
     int error_code;
     char msg[IESTACK_ERROR_STRLEN];
@@ -36,59 +30,147 @@ int iestack_error_init(
 );
 void iestack_error_deinit(Iestack_error *error);
 
+Iestack *iestack_create();
 int iestack_init(Iestack *stack);
 void iestack_deinit(Iestack *stack);
+void iestack_destroy(Iestack *stack);
 int iestack_push(Iestack *stack, int error_code, const char *msg, const char *filename, size_t linenumber);
 int iestack_dump(Iestack *stack, FILE *dest);
 int iestack_push_direct(Iestack *stack, Iestack_error *src_error);
 int iestack_pop(Iestack *stack, Iestack_error *dest_error);
-#define IESTACK_PUSH(stack, error_code, string) assert(!iestack_push(stack, error_code, string, __FILE__, __LINE__))
-#define IESTACK_PUSHF(stack, error_code, fstring, ...) \
-{ \
+
+#ifdef __cplusplus
+extern thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+#else
+extern _Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+#endif
+
+#ifdef __cplusplus
+extern thread_local Iestack **iestack_global_errors;
+#else
+extern _Thread_local Iestack **iestack_global_errors;
+#endif
+
+#define IESTACK_PUSH2(stack, error_code, string) assert(!iestack_push(stack, error_code, string, __FILE__, __LINE__))
+#define IESTACK_PUSHF2(stack, error_code, fstring, ...) do { \
     size_t printed_len___ = 0; \
     int ret___ = 0; \
     iestack_buffer_for_formatting[0] = 0; \
     BTRC_SNPRINTF(&ret___, &printed_len___, iestack_buffer_for_formatting, IESTACK_ERROR_STRLEN, fstring, __VA_ARGS__); \
-    IESTACK_PUSH(stack, error_code, iestack_buffer_for_formatting); \
-}
-#define IESTACK_RETURN(stack, error_code, string) IESTACK_PUSH(stack, error_code, string); \
-return error_code
-#define IESTACK_RETURNF(stack, error_code, fstring, ...) IESTACK_PUSHF(stack, error_code, fstring, __VA_ARGS__); \
-return error_code
-#define IESTACK_EXPECT(stack, error_expr, string) { \
+    IESTACK_PUSH2(stack, error_code, iestack_buffer_for_formatting); \
+} while(0)
+#define IESTACK_RETURN2(stack, error_code, string) do { \
+    IESTACK_PUSH2(stack, error_code, string); \
+    return error_code; \
+} while(0)
+#define IESTACK_RETURNF2(stack, error_code, fstring, ...) do { \
+    IESTACK_PUSHF2(stack, error_code, fstring, __VA_ARGS__); \
+    return error_code; \
+} while(0)
+#define IESTACK_HANDLE2(stack, error_expr, string) do { \
     const int ___error_code = error_expr; \
     if(___error_code) { \
-        IESTACK_RETURN(stack, ___error_code, string); \
+        IESTACK_RETURN2(stack, ___error_code, string); \
     } \
-}
-#define IESTACK_EXPECTF(stack, error_expr, fstring, ...) { \
+} while(0)
+#define IESTACK_HANDLEF2(stack, error_expr, fstring, ...) do { \
     const int ___error_code = error_expr; \
     if(___error_code) { \
-        IESTACK_RETURNF(stack, ___error_code, fstring, __VA_ARGS__); \
+        IESTACK_RETURNF2(stack, ___error_code, fstring, __VA_ARGS__); \
     } \
-}
-#define IESTACK_SUPPOSE(stack, bool_expr, error_code, string) { \
+} while(0)
+#define IESTACK_SUPPOSE2(stack, bool_expr, error_code, string) do { \
     const bool ___bool_value = bool_expr; \
     if(!___bool_value) { \
-        IESTACK_RETURN(stack, error_code, string); \
+        IESTACK_RETURN2(stack, error_code, string); \
     } \
-}
-#define IESTACK_SUPPOSEF(stack, bool_expr, error_code, fstring, ...) { \
+} while(0)
+#define IESTACK_SUPPOSEF2(stack, bool_expr, error_code, fstring, ...) do { \
     const bool ___bool_value = bool_expr; \
     if(!___bool_value) { \
-        IESTACK_RETURNF(stack, error_code, fstring, __VA_ARGS__); \
+        IESTACK_RETURNF2(stack, error_code, fstring, __VA_ARGS__); \
     } \
-}
+} while(0)
+#define IESTACK_HANDLE2_CALLBACK(stack, error_expr, callback_expr, string) do { \
+    const int ___error_code = error_expr; \
+    if(___error_code) { \
+        callback_expr; \
+        IESTACK_RETURN2(stack, ___error_code, string); \
+    } \
+} while(0)
+#define IESTACK_HANDLEF2_CALLBACK(stack, error_expr, callback_expr, fstring, ...) do { \
+    const int ___error_code = error_expr; \
+    if(___error_code) { \
+        callback_expr; \
+        IESTACK_RETURNF2(stack, ___error_code, fstring, __VA_ARGS__); \
+    } \
+} while(0)
+#define IESTACK_SUPPOSE2_CALLBACK(stack, bool_expr, error_code, callback_expr, string) do { \
+    const bool ___bool_value = bool_expr; \
+    if(!___bool_value) { \
+        callback_expr; \
+        IESTACK_RETURN2(stack, error_code, string); \
+    } \
+} while(0)
+#define IESTACK_SUPPOSEF2_CALLBACK(stack, bool_expr, error_code, callback_expr, fstring, ...) do { \
+    const bool ___bool_value = bool_expr; \
+    if(!___bool_value) { \
+        callback_expr; \
+        IESTACK_RETURNF2(stack, error_code, fstring, __VA_ARGS__); \
+    } \
+} while(0)
 
 // replace with your global error stack
-#define VLTL_PUSH(error_expr, string) IESTACK_PUSH(&vltl_global_errors, error_expr, string)
-#define VLTL_PUSHF(error_expr, fstring, ...) IESTACK_PUSHF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
-#define VLTL_RETURN(error_expr, string) IESTACK_RETURN(&vltl_global_errors, error_expr, string)
-#define VLTL_RETURNF(error_expr, fstring, ...) IESTACK_RETURNF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
-#define VLTL_EXPECT(error_expr, string) IESTACK_EXPECT(&vltl_global_errors, error_expr, string)
-#define VLTL_EXPECTF(error_expr, fstring, ...) IESTACK_EXPECTF(&vltl_global_errors, error_expr, fstring, __VA_ARGS__)
-#define VLTL_SUPPOSE(bool_expr, error_code, string) IESTACK_SUPPOSE(&vltl_global_errors, bool_expr, error_code, string)
-#define VLTL_SUPPOSEF(bool_expr, error_code, fstring, ...) IESTACK_SUPPOSEF(&vltl_global_errors, bool_expr, error_code, fstring, __VA_ARGS__)
+#define IESTACK_PUSH(error_expr, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_PUSH2(*iestack_global_errors, error_expr, string); \
+} while(0)
+#define IESTACK_PUSHF(error_expr, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_PUSHF2(*iestack_global_errors, error_expr, fstring, __VA_ARGS__); \
+} while(0)
+#define IESTACK_RETURN(error_expr, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_RETURN2(*iestack_global_errors, error_expr, string); \
+} while(0)
+#define IESTACK_RETURNF(error_expr, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_RETURNF2(*iestack_global_errors, error_expr, fstring, __VA_ARGS__); \
+} while(0)
+#define IESTACK_HANDLE(error_expr, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_HANDLE2(*iestack_global_errors, error_expr, string); \
+} while(0)
+#define IESTACK_HANDLEF(error_expr, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_HANDLEF2(*iestack_global_errors, error_expr, fstring, __VA_ARGS__); \
+} while(0)
+#define IESTACK_SUPPOSE(bool_expr, error_code, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_SUPPOSE2(*iestack_global_errors, bool_expr, error_code, string); \
+} while(0)
+#define IESTACK_SUPPOSEF(bool_expr, error_code, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_SUPPOSEF2(*iestack_global_errors, bool_expr, error_code, fstring, __VA_ARGS__); \
+} while(0)
+#define IESTACK_HANDLE_CALLBACK(error_expr, callback_expr, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_HANDLE2_CALLBACK(*iestack_global_errors, error_expr, callback_expr, string); \
+} while(0)
+#define IESTACK_HANDLEF_CALLBACK(error_expr, callback_expr, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_HANDLEF2_CALLBACK(*iestack_global_errors, error_expr, callback_expr, fstring, __VA_ARGS__); \
+} while(0)
+#define IESTACK_SUPPOSE_CALLBACK(bool_expr, error_code, callback_expr, string) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_SUPPOSE2_CALLBACK(*iestack_global_errors, bool_expr, error_code, callback_expr, string); \
+} while(0)
+#define IESTACK_SUPPOSEF_CALLBACK(bool_expr, error_code, callback_expr, fstring, ...) do { \
+    assert(iestack_global_errors != NULL); \
+    IESTACK_SUPPOSEF2_CALLBACK( \
+        *iestack_global_errors, bool_expr, error_code, callback_expr, fstring, __VA_ARGS__ \
+    ); \
+} while(0)
 
 #ifdef I_LIKE_BAD_IDEAS_A_LOT
 void print_int(int i, int e, char *s);

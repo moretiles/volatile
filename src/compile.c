@@ -106,19 +106,19 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
     char dest_operand_buf[99];
     const char *fstring = NULL;
 
-    VLTL_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
-    VLTL_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
+    IESTACK_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
+    IESTACK_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
 
     switch(src->kind) {
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
-        VLTL_SUPPOSE(
+        IESTACK_SUPPOSE(
             vltl_global_context.indentation_level < (VLTL_LANG_BODY_CAP + 1),
             ENOTRECOVERABLE,
             "Body nesting depth exceeded!"
         );
 
         vltl_global_context.indentation_level += 1;
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             nkht_init(
                 &(vltl_global_context.bodies[vltl_global_context.indentation_level - 1].local_variables),
                 sizeof(Vltl_lang_local *)
@@ -153,7 +153,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
                 body_kind = VLTL_LANG_BODY_KIND_WHILE;
                 break;
             default:
-                VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation owns a body_open operation!");
+                IESTACK_RETURN(ENOTRECOVERABLE, "Some invalid operation owns a body_open operation!");
                 break;
             }
         }
@@ -165,12 +165,12 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
         ;
 
         // TODO: Fully implement functions
-        VLTL_SUPPOSE(vltl_global_context.indentation_level > 0, ENOTRECOVERABLE, "Can't close unopened body!");
+        IESTACK_SUPPOSE(vltl_global_context.indentation_level > 0, ENOTRECOVERABLE, "Can't close unopened body!");
         nkht_deinit(&(vltl_global_context.bodies[vltl_global_context.indentation_level - 1].local_variables));
         vltl_global_context.indentation_level -= 1;
         if(vltl_global_context.indentation_level == 0) {
             label_value = vltl_global_context.indentation_level * VLTL_LANG_BODY_LABEL_ITERATE;
-            VLTL_SUPPOSE(
+            IESTACK_SUPPOSE(
                 vltl_global_context.bodies[0].body_kind == VLTL_LANG_BODY_KIND_FUNCTION,
                 ENOTRECOVERABLE,
                 "Uhh it looks like something went horribly wrong in connection with this function..."
@@ -223,10 +223,10 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
                 label_value += VLTL_LANG_BODY_LABEL_WHILE_CLOSE;
                 break;
             case VLTL_LANG_BODY_KIND_FUNCTION:
-                VLTL_RETURN(ENOTRECOVERABLE, "Invalid use of nested function... maybe!");
+                IESTACK_RETURN(ENOTRECOVERABLE, "Invalid use of nested function... maybe!");
                 break;
             default:
-                VLTL_RETURN(ENOTRECOVERABLE, "Some invalid operation once owned a body_open operation... maybe!");
+                IESTACK_RETURN(ENOTRECOVERABLE, "Some invalid operation once owned a body_open operation... maybe!");
                 break;
             }
             fprintf(dest, "%lu:\n", label_value);
@@ -239,10 +239,10 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
         fstring = "test %s, %s\n"
                   "\tjz %luf\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
         fprintf(
@@ -257,10 +257,10 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
         fstring = "test %s, %s\n"
                   "\tjz %luf\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
         fprintf(
@@ -277,10 +277,10 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
         fstring = "test %s, %s\n"
                   "\tjz %luf\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
         fprintf(
@@ -294,22 +294,22 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
                   "\tmov %s, 1\n"
                   "\tcmove %s, %s\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *(src->lchild)), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *(src->rchild)), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(src2_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
         fprintf(
@@ -322,7 +322,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
 
         break;
     default:
-        VLTL_RETURN(EINVAL, "Cannot turn this kind of sast_operation into a label!");
+        IESTACK_RETURN(EINVAL, "Cannot turn this kind of sast_operation into a label!");
     }
 
     return 0;
@@ -330,8 +330,8 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
 
 int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *src) {
     int ret = 0;
-    VLTL_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
-    VLTL_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
+    IESTACK_SUPPOSE(dest != NULL, EINVAL, "dest is NULL!");
+    IESTACK_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
 
     // handle instruction
     Vltl_asm_instruction as_instruction = { 0 };
@@ -403,14 +403,14 @@ int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *
             break;
         default:
             ret = EINVAL;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unable to convert this sast_operation_kind!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unable to convert this sast_operation_kind!");
             return ret;
             break;
         }
 
         ret = vltl_asm_instruction_stringify(dest, as_instruction);
         if(ret != 0) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling vltl_asm_instruction_stringify!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling vltl_asm_instruction_stringify!");
             return ret;
         }
     }
@@ -420,7 +420,7 @@ int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *
         // only amd64 supported for now
         if(vltl_global_config.isa != VLTL_ISA_AMD64) {
             ret = ENOTRECOVERABLE;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so fail!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown ISA so fail!");
             return ret;
         }
 
@@ -465,16 +465,16 @@ int vltl_compile_operation_convert_instruction(FILE *dest, Vltl_sast_operation *
             Vltl_asm_operand as_operand = { 0 };
             ret = vltl_compile_operation_operandify(&as_operand, current_operation);
             if(ret != 0) {
-                IESTACK_PUSH(
-                    &vltl_global_errors, ret,
+                IESTACK_PUSH2(
+                    vltl_global_errors, ret,
                     "Unexpected failure calling vltl_compile_operation_operandify!"
                 );
                 return ret;
             }
             ret = vltl_asm_operand_stringify(dest, as_operand);
             if(ret != 0) {
-                IESTACK_PUSH(
-                    &vltl_global_errors, ret,
+                IESTACK_PUSH2(
+                    vltl_global_errors, ret,
                     "Unexpected failure calling vltl_asm_operand_stringify!"
                 );
                 return ret;
@@ -495,8 +495,8 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     int ret = 0;
     if(dest == NULL || src == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : dest = %p, src = %p!",
             (void *) dest, (void *) src
         );
@@ -506,14 +506,14 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     // only amd64 supported for now
     if(vltl_global_config.isa != VLTL_ISA_AMD64) {
         ret = ENOTRECOVERABLE;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA so must fail!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unknown ISA so must fail!");
         return ret;
     }
 
 
     if(!vltl_sast_operation_valid(*src)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "src is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "src is invalid!");
         return EINVAL;
     }
 
@@ -524,7 +524,7 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     char src1_operand_buf[99];
     char src2_operand_buf[99];
     const char *fstring = NULL;
-        
+
     switch(src->kind) {
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
@@ -539,16 +539,16 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         fstring = "mov %s, %s\n"
                   "\tmov %s, [%s]\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src->arguments[0]), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
 
@@ -560,22 +560,22 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
         fstring = "mov %s, [%s + 8 * %s + 0]\n";
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(dest_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src->arguments[1]), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(src1_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_compile_operation_operandify(&as_operand, *src->arguments[3]), "Could not operandify!"
         );
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_asm_operand_detokenize(src2_operand_buf, operand_buf_cap, &ignore_len, as_operand), "Could not detokenzie!"
         );
 
@@ -597,8 +597,8 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
     int ret = 0;
     if(dest == NULL || src == NULL || operation == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : dest = %p, src = %p, operation = %p!",
             (void *) dest, (void *) src, (void *) operation
         );
@@ -628,7 +628,7 @@ int vltl_compile_convert_recurse(FILE *dest, Vltl_sast_tree *src, Vltl_sast_oper
     // indentation because this must be inside of a function
     fputs("\t", dest);
 
-    VLTL_EXPECT(vltl_compile_operation_convert(dest, operation), "Failed to write compiled expression to dest!");
+    IESTACK_HANDLE(vltl_compile_operation_convert(dest, operation), "Failed to write compiled expression to dest!");
 
     for(size_t i = 0; i < vltl_sast_operation_after_argc(*operation); i++) {
         Vltl_sast_operation *ith_operation = operation->after[i];
@@ -645,8 +645,8 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     int ret = 0;
     if(dest == NULL || src == NULL || src->root == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : dest = %p, src = %p, src->root = %p!",
             (void *) dest, (void *) src, (void *) src->root
         );
@@ -660,9 +660,9 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         // TODO: Fully implement functions
         // Need to figure out how I want to store function and what is associated with it
-        VLTL_SUPPOSE(vltl_global_context.indentation_level == 0, ENOTRECOVERABLE, "Can't open function here!");
+        IESTACK_SUPPOSE(vltl_global_context.indentation_level == 0, ENOTRECOVERABLE, "Can't open function here!");
         vltl_global_context.indentation_level = 1;
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             nkht_init(
                 &(vltl_global_context.bodies[0].local_variables),
                 sizeof(Vltl_lang_local *)
@@ -674,19 +674,19 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
         if(created_function == NULL) {
             ret = ENOMEM;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
             return ret;
         }
 
         ret = vltl_lang_function_init(created_function, src->root->evaluates_to.as_unknown);
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Could not initialize lexer function!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
             return ret;
         }
 
         ret = nkht_set(vltl_global_table_functions, src->root->evaluates_to.as_unknown, &created_function);
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
         vltl_global_context.function = created_function;
@@ -712,7 +712,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                 Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
                 if(created_literal == NULL) {
                     ret = ENOMEM;
-                    IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+                    IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
                     return ret;
                 }
                 *created_literal = (Vltl_lang_literal) {
@@ -724,14 +724,14 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
                 if(typeas_operation->lchild->evaluates_to.as_unknown == NULL) {
                     ret = EINVAL;
-                    IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                    IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
                     return ret;
                 }
                 ret = vltl_lang_function_local_set(
                           vltl_global_context.function, typeas_operation->lchild->evaluates_to.as_unknown, &vltl_lang_type_long,
                           NULL, created_literal);
                 if(ret) {
-                    IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                    IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                     return ret;
                 }
 
@@ -744,7 +744,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                     Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
                     if(created_literal == NULL) {
                         ret = ENOMEM;
-                        IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
                         return ret;
                     }
                     *created_literal = (Vltl_lang_literal) {
@@ -756,14 +756,14 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
                     if(typeas_operation->lchild->evaluates_to.as_unknown == NULL) {
                         ret = EINVAL;
-                        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
                         return ret;
                     }
                     ret = vltl_lang_function_local_set(
                               vltl_global_context.function, typeas_operation->lchild->evaluates_to.as_unknown, &vltl_lang_type_long,
                               NULL, created_literal);
                     if(ret) {
-                        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                         return ret;
                     }
 
@@ -781,7 +781,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                         fputs("\tmov -32[%rbp], %rcx\n", dest);
                         break;
                     default:
-                        VLTL_RETURN(ENOTRECOVERABLE, "Don't know that register!");
+                        IESTACK_RETURN(ENOTRECOVERABLE, "Don't know that register!");
                         break;
                     }
                 }
@@ -800,7 +800,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
         if(created_global == NULL || created_literal == NULL) {
             ret = ENOMEM;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
             return ret;
         }
         *created_literal = (Vltl_lang_literal) {
@@ -818,12 +818,12 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         if(src->root->destination.as_unknown == NULL) {
             ret = EINVAL;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
             return ret;
         }
         ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
 
@@ -840,7 +840,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
         if(created_literal == NULL) {
             ret = ENOMEM;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
             return ret;
         }
         *created_literal = (Vltl_lang_literal) {
@@ -854,8 +854,8 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         case VLTL_ASM_OPERAND_KIND_MEMORY:
             if(src->root->destination.as_memory.memory_kind != VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL) {
                 ret = EINVAL;
-                IESTACK_PUSH(
-                    &vltl_global_errors, ret, "Trying to create aliased local for something not a local!"
+                IESTACK_PUSH2(
+                    vltl_global_errors, ret, "Trying to create aliased local for something not a local!"
                 );
                 return ret;
             }
@@ -864,7 +864,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                       NULL, created_literal
                   );
             if(ret) {
-                IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                 return ret;
             }
 
@@ -886,7 +886,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         case VLTL_ASM_OPERAND_KIND_UNKNOWN:
             if(src->root->destination.as_unknown == NULL) {
                 ret = EINVAL;
-                IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+                IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
                 return ret;
             }
             ret = vltl_lang_function_local_set(
@@ -894,7 +894,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                       NULL, created_literal
                   );
             if(ret) {
-                IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                 return ret;
             }
 
@@ -914,7 +914,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             };
             break;
         default:
-            VLTL_RETURN(EINVAL, "Tried to create invalid local!");
+            IESTACK_RETURN(EINVAL, "Tried to create invalid local!");
         }
 
         return vltl_compile_convert_recurse(dest, src, src->root->lchild);
@@ -927,7 +927,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
         if(created_constant == NULL || created_literal == NULL) {
             ret = ENOMEM;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Could not allocate enough memory!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
             return ret;
         }
         *created_literal = (Vltl_lang_literal) {
@@ -945,12 +945,12 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         if(src->root->destination.as_unknown == NULL) {
             ret = EINVAL;
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unknown string pointer is NULL!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
             return ret;
         }
         ret = nkht_set(vltl_global_table_constants, src->root->destination.as_unknown, &created_constant);
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
 
@@ -1364,7 +1364,7 @@ vltl_compile_file_debug:
 
 vltl_compile_file_error:
     if(ret) {
-        iestack_dump(&vltl_global_errors, stdout);
+        iestack_dump(vltl_global_errors, stdout);
     }
     if(src_file) {
         fflush(src_file);

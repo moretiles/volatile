@@ -2,6 +2,7 @@ function index_into_main ( ) {
     local a = 3
     local b = 2
     local c = 1
+    local d = &c
 
-    return c[0] + c[1] + c[2]
+    return d[0] + d[1] + d[2]
 }

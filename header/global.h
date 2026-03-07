@@ -173,7 +173,7 @@ extern struct vltl_global_config vltl_global_config;
 extern struct vltl_global_context vltl_global_context;
 extern struct vltl_global_registers vltl_global_registers;
 extern struct varena *vltl_global_allocator;
-extern struct iestack vltl_global_errors;
+extern struct iestack *vltl_global_errors;
 
 extern struct nkht *vltl_global_table_constants;
 extern struct nkht *vltl_global_table_globals;
