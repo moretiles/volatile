@@ -1,0 +1,14 @@
+global address_indirection_global = 44
+
+function address_indirection_main ( ) {
+    local a = 111
+    local b = 222
+    local c = 400
+
+    local a_ptr = &a
+    local b_ptr = &b
+    local c_ptr = &c
+    local address_indirection_global_ptr = &address_indirection_global
+
+    return @a_ptr + @b_ptr + @c_ptr + @address_indirection_global_ptr
+}

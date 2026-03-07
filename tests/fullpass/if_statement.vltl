@@ -4,16 +4,16 @@ function if_statement_main ( ) {
     local c = 0
     local d = 2
 
-    if ( 100 ) {
+    if(100) {
         a = 7000
     }
-    if ( 0 ) {
+    if(0) {
         b = 0
     }
-    if ( 3 == 3 ) {
+    if(3 == 3) {
         c = 30
     }
-    if ( 50 - 50 ) {
+    if(50 - 50) {
         d = 0
     }
 

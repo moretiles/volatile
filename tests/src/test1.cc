@@ -128,7 +128,7 @@ TEST(sast, operation_insert_and_compile) {
     Vltl_asm_operand operand_immediate_3 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
-            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 3
         }
@@ -136,7 +136,7 @@ TEST(sast, operation_insert_and_compile) {
     Vltl_asm_operand operand_immediate_4 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
-            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 4
         }
@@ -232,7 +232,7 @@ TEST(sast, operation_connect_and_compile) {
     Vltl_asm_operand operand_immediate_3 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
-            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 3
         }
@@ -240,7 +240,7 @@ TEST(sast, operation_connect_and_compile) {
     Vltl_asm_operand operand_immediate_4 = {
         .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
         .as_immediate = {
-            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
             .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
             .value = 4
         }
@@ -1146,6 +1146,20 @@ TEST(fullpass, while_statement_main) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/while_statement.bin";
     char src_filename[] = "tests/fullpass/while_statement.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, address_indirection_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/address_indirection.bin";
+    char src_filename[] = "tests/fullpass/address_indirection.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, index_into_main) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/index_into.bin";
+    char src_filename[] = "tests/fullpass/index_into.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 

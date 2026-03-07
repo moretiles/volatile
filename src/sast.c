@@ -25,7 +25,13 @@ bool vltl_sast_operation_kind_valid(const Vltl_sast_operation_kind operation_kin
     case VLTL_SAST_OPERATION_KIND_CALL:
     case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_INDEX_OPEN:
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
     case VLTL_SAST_OPERATION_KIND_LOAD:
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_LEA:
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
     case VLTL_SAST_OPERATION_KIND_ADD:
     case VLTL_SAST_OPERATION_KIND_SUB:
     case VLTL_SAST_OPERATION_KIND_MUL:
@@ -198,17 +204,21 @@ size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation) {
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
         return 0;
         break;
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
     case VLTL_SAST_OPERATION_KIND_RETURN:
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
         return 1;
         break;
     case VLTL_SAST_OPERATION_KIND_CALL:
     case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
     case VLTL_SAST_OPERATION_KIND_LOAD:
+    case VLTL_SAST_OPERATION_KIND_LEA:
     case VLTL_SAST_OPERATION_KIND_STORE:
     case VLTL_SAST_OPERATION_KIND_ADD:
     case VLTL_SAST_OPERATION_KIND_SUB:
@@ -224,7 +234,11 @@ size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation) {
         break;
     case VLTL_SAST_OPERATION_KIND_ELIF:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
+    case VLTL_SAST_OPERATION_KIND_INDEX_OPEN:
         return 3;
+        break;
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+        return 5;
         break;
     case VLTL_SAST_OPERATION_KIND_CSV:
         return vltl_sast_operation_args_argc(operation);
@@ -412,11 +426,29 @@ int vltl_sast_operation_kind_detokenize(
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
         src_string = "GROUPING_CLOSE";
         break;
+    case VLTL_SAST_OPERATION_KIND_INDEX_OPEN:
+        src_string = "INDEX_OPEN";
+        break;
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
+        src_string = "INDEX_CLOSE";
+        break;
     case VLTL_SAST_OPERATION_KIND_LOAD:
         src_string = "LOAD";
         break;
+    case VLTL_SAST_OPERATION_KIND_LEA:
+        src_string = "LEA";
+        break;
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+        src_string = "MOV_SRC3";
+        break;
     case VLTL_SAST_OPERATION_KIND_STORE:
         src_string = "STORE";
+        break;
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+        src_string = "ADDRESS";
+        break;
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
+        src_string = "INDIRECTION";
         break;
     case VLTL_SAST_OPERATION_KIND_ADD:
         src_string = "ADD";
@@ -799,11 +831,9 @@ int vltl_sast_tree_connect_resolve_tbd(
             return 0;
         }
 
-        VLTL_SUPPOSE(
-            resolve_me->kind == VLTL_SAST_OPERATION_KIND_EVAL,
-            ENOTRECOVERABLE,
-            "operation that is not EVAL is TBD!"
-        );
+        if(resolve_me->kind != VLTL_SAST_OPERATION_KIND_EVAL) {
+            return 0;
+        }
         VLTL_SUPPOSE(resolve_me->parent != NULL, ENOTRECOVERABLE, "eval_operation has no parent!");
         VLTL_SUPPOSE(
             resolve_me->parent->lchild == resolve_me,
@@ -1072,7 +1102,7 @@ int vltl_sast_tree_connect_protect_siblings(
                             .as_memory = {
                                 .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                                 .name = tmp_local_name,
-                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                                 .value = 0
                             }
                         }
@@ -1119,7 +1149,7 @@ int vltl_sast_tree_connect_protect_siblings(
                             .as_memory = {
                                 .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                                 .name = tmp_local_name,
-                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                                 .value = 0
                             }
                         }
@@ -1178,7 +1208,7 @@ int vltl_sast_tree_connect_evaluate_two(
         parent->evaluates_to = (Vltl_asm_operand) {
             .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
             .as_immediate = (Vltl_asm_operand_immediate) {
-                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                 .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
                 .value = math_function(
                     child_one->evaluates_to.as_immediate.value,
@@ -1275,13 +1305,17 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
 
     // does parent get first argument destination?
     switch(connect_me->kind) {
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
     case VLTL_SAST_OPERATION_KIND_ADD:
     case VLTL_SAST_OPERATION_KIND_SUB:
     case VLTL_SAST_OPERATION_KIND_MUL:
     case VLTL_SAST_OPERATION_KIND_DIV:
     case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
-    case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
     case VLTL_SAST_OPERATION_KIND_LOAD:
+    case VLTL_SAST_OPERATION_KIND_LEA:
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+    case VLTL_SAST_OPERATION_KIND_GROUPING_OPEN:
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
@@ -1305,7 +1339,9 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_TYPEAS:
     case VLTL_SAST_OPERATION_KIND_CSV:
     case VLTL_SAST_OPERATION_KIND_EVAL:
+    case VLTL_SAST_OPERATION_KIND_INDEX_OPEN:
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
         break;
@@ -1371,9 +1407,13 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_STORE:
         connect_me->evaluates_to = connect_me->arguments[1]->evaluates_to;
         break;
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_INDIRECTION:
     case VLTL_SAST_OPERATION_KIND_EVAL:
     case VLTL_SAST_OPERATION_KIND_CALL:
     case VLTL_SAST_OPERATION_KIND_GROUPING_CLOSE:
+    case VLTL_SAST_OPERATION_KIND_INDEX_OPEN:
+    case VLTL_SAST_OPERATION_KIND_INDEX_CLOSE:
     case VLTL_SAST_OPERATION_KIND_COMMA:
     case VLTL_SAST_OPERATION_KIND_TYPEAS:
     case VLTL_SAST_OPERATION_KIND_CSV:
@@ -1381,6 +1421,8 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_LOAD:
+    case VLTL_SAST_OPERATION_KIND_LEA:
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
     case VLTL_SAST_OPERATION_KIND_ELSE:
         break;
     case VLTL_SAST_OPERATION_KIND_UNSET:
@@ -1439,12 +1481,50 @@ int vltl_sast_operation_convert_amd64_eval(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
+    Vltl_asm_operand evaluates_to = { 0 };
     Vltl_sast_operation *eval_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
     if(eval_operation == NULL) {
         return ENOMEM;
     }
 
     switch(src->evaluates_to->kind) {
+    case VLTL_LANG_TOKEN_KIND_CONSTANT:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
+            .as_immediate = (Vltl_asm_operand_immediate) {
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
+                .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
+                .value = (uint64_t) src->evaluates_to->constant->literal->fields[0]
+            }
+        };
+
+        *eval_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .belongs_to = on_this,
+            .parent = NULL,
+            .evaluates_to = evaluates_to
+        };
+
+        *equivalent = eval_operation;
+        break;
+    case VLTL_LANG_TOKEN_KIND_LITERAL:
+        evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
+            .as_immediate = {
+                .integral_type = src->evaluates_to->literal.type->integral_type,
+                .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
+                .value = (uint64_t) src->evaluates_to->literal.fields[0]
+            }
+        };
+        *eval_operation = (Vltl_sast_operation) {
+            .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+            .belongs_to = on_this,
+            .parent = NULL,
+            .evaluates_to = evaluates_to
+        };
+
+        *equivalent = eval_operation;
+        break;
     case VLTL_LANG_TOKEN_KIND_GLOBAL:
         *eval_operation = (Vltl_sast_operation) {
             .kind = VLTL_SAST_OPERATION_KIND_EVAL,
@@ -1455,7 +1535,7 @@ int vltl_sast_operation_convert_amd64_eval(
                 .as_memory = (Vltl_asm_operand_memory) {
                     .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_GLOBAL,
                     .name = src->evaluates_to->global->name,
-                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                     .value = 0
                 }
             }
@@ -1471,7 +1551,7 @@ int vltl_sast_operation_convert_amd64_eval(
                 .as_memory = (Vltl_asm_operand_memory) {
                     .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                     .name = src->evaluates_to->local->name,
-                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                    .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                     .value = 0
                 }
             }
@@ -1504,6 +1584,7 @@ int vltl_sast_operation_convert_amd64_eval(
     return 0;
 }
 
+/*
 int vltl_sast_operation_convert_amd64_load(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
@@ -1560,7 +1641,7 @@ int vltl_sast_operation_convert_amd64_load(
             .as_memory = {
                 .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_GLOBAL,
                 .name = src->evaluates_to->global->name,
-                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                 .value = 0
             }
         };
@@ -1591,7 +1672,7 @@ int vltl_sast_operation_convert_amd64_load(
         evaluates_to = (Vltl_asm_operand) {
             .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
             .as_immediate = (Vltl_asm_operand_immediate) {
-                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                 .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
                 .value = (uint64_t) src->evaluates_to->constant->literal->fields[0]
             }
@@ -1625,7 +1706,7 @@ int vltl_sast_operation_convert_amd64_load(
             .as_memory = {
                 .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
                 .name = src->evaluates_to->local->name,
-                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT64,
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                 .value = 0
             }
         };
@@ -1666,6 +1747,7 @@ int vltl_sast_operation_convert_amd64_load(
     (void) insert_below_next;
     return 0;
 }
+*/
 
 int vltl_sast_operation_convert_amd64_store(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
@@ -1781,6 +1863,127 @@ int vltl_sast_operation_convert_amd64_call(
     // push once for arguments (which will be either in the form of a EVAL or CSV)
     vstack_push(insert_below_next, &call_operation);
     return 0;
+}
+
+int vltl_sast_operation_convert_amd64_address(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *lea_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    Vltl_sast_operation *lea_operation_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(lea_operation == NULL) {
+        return ENOMEM;
+    }
+    if(lea_operation_dest == NULL) {
+        return ENOMEM;
+    }
+
+    // don't use src for anything
+    (void) src;
+    *lea_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_LEA,
+        .belongs_to = on_this,
+        .parent = NULL,
+        .lchild = lea_operation_dest
+    };
+    *lea_operation_dest = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .belongs_to = on_this,
+        .parent = lea_operation,
+        .evaluates_to = vltl_asm_operand_tbd
+    };
+
+    *equivalent = lea_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // push once for what address is being taken of
+    vstack_push(insert_below_next, &lea_operation);
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_indirection_get(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *indirection_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(indirection_operation == NULL) {
+        return ENOMEM;
+    }
+
+    // don't use src for anything
+    (void) src;
+    *indirection_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_INDIRECTION,
+        .belongs_to = on_this,
+        .parent = NULL
+    };
+
+    *equivalent = indirection_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+
+    // push once for what is being indirected
+    vstack_push(insert_below_next, &indirection_operation);
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_indirection_set(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *indirection_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(indirection_operation == NULL) {
+        return ENOMEM;
+    }
+
+    // don't use src for anything
+    (void) src;
+    *indirection_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_INDIRECTION,
+        .belongs_to = on_this,
+        .parent = NULL
+    };
+
+    *equivalent = indirection_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+
+    // push once for what is being indirected
+    vstack_push(insert_below_next, &indirection_operation);
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_indirection(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+        if(src->parent == NULL || src->parent->lchild != src) {
+            return vltl_sast_operation_convert_amd64_indirection_get(
+                on_this, future_parent, equivalent, insert_below_next, src
+            );
+        }
+
+        switch(src->parent->kind) {
+        case VLTL_AST_OPERATION_KIND_EQUALS:
+            return vltl_sast_operation_convert_amd64_indirection_set(
+                on_this, future_parent, equivalent, insert_below_next, src
+            );
+            break;
+        default:
+            return vltl_sast_operation_convert_amd64_indirection_get(
+                on_this, future_parent, equivalent, insert_below_next, src
+            );
+            break;
+        }
 }
 
 int vltl_sast_operation_convert_amd64_add(
@@ -2374,34 +2577,114 @@ int vltl_sast_operation_convert_amd64_grouping_close(
     return 0;
 }
 
+int vltl_sast_operation_convert_amd64_index_open(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *lea_operation_variable = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(lea_operation_variable != NULL, EINVAL, "No memory!")
+    Vltl_sast_operation *lea_operation_variable_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(lea_operation_variable_dest != NULL, EINVAL, "No memory!")
+    Vltl_sast_operation *load_operation_index = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(load_operation_index != NULL, EINVAL, "No memory!")
+    Vltl_sast_operation *load_operation_index_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(load_operation_index_dest != NULL, EINVAL, "No memory!")
+    Vltl_sast_operation *load_operation_index_zero = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    VLTL_SUPPOSE(load_operation_index_zero != NULL, EINVAL, "No memory!")
+
+    // don't use src for anything
+    (void) src;
+    *load_operation_index = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_LOAD_SRC3,
+        .belongs_to = on_this,
+        .parent = NULL,
+        .arguments[0] = load_operation_index_dest,
+        .arguments[1] = lea_operation_variable,
+        .arguments[2] = load_operation_index_zero,
+        .arguments[3] = NULL,
+        .destination = vltl_asm_operand_tbd
+    };
+    *load_operation_index_dest = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .belongs_to = on_this,
+        .parent = load_operation_index,
+        .evaluates_to = vltl_asm_operand_tbd
+    };
+    *load_operation_index_zero = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .belongs_to = on_this,
+        .parent = load_operation_index,
+        .evaluates_to = (Vltl_asm_operand) {
+            .kind = VLTL_ASM_OPERAND_KIND_IMMEDIATE,
+            .as_immediate = (Vltl_asm_operand_immediate) {
+                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
+                .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
+                .value = 0
+            }
+        }
+    };
+    *lea_operation_variable = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_LEA,
+        .belongs_to = on_this,
+        .parent = load_operation_index,
+        .lchild = lea_operation_variable_dest
+    };
+    *lea_operation_variable_dest = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .belongs_to = on_this,
+        .parent = lea_operation_variable,
+        .evaluates_to = vltl_asm_operand_tbd
+    };
+
+    *equivalent = load_operation_index;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // push once for variable itself, then once for index value, then throw the index_close into the trash
+    vstack_push(insert_below_next, &load_operation_index);
+    vstack_push(insert_below_next, &load_operation_index);
+    vstack_push(insert_below_next, &lea_operation_variable);
+    return 0;
+}
+
+int vltl_sast_operation_convert_amd64_index_close(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *index_close_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(index_close_operation == NULL) {
+        return ENOMEM;
+    }
+
+    (void) src;
+    *index_close_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_INDEX_CLOSE,
+        .belongs_to = on_this,
+        .parent = NULL,
+    };
+
+    *equivalent = index_close_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    (void) insert_below_next;
+
+    return 0;
+}
+
 int vltl_sast_operation_convert_amd64(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
     switch(src->kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
-        ;
-        const bool parent_is_null = src->parent == NULL;
-        const bool is_destination_of_parent = !parent_is_null && (src->parent->lchild == src);
-        const bool parent_modifies_variable = (
-                !parent_is_null &&
-                (
-                    (src->parent->kind == VLTL_AST_OPERATION_KIND_EQUALS) ||
-                    (src->parent->kind == VLTL_AST_OPERATION_KIND_FUNCTION)
-                )
-                                              );
-        const bool parent_is_psuedo = (
-                                          !parent_is_null &&
-                                          (
-                                              (src->parent->kind == VLTL_AST_OPERATION_KIND_TYPEAS)
-                                          )
-                                      );
-
-        if(parent_is_psuedo || (is_destination_of_parent && parent_modifies_variable)) {
-            return vltl_sast_operation_convert_amd64_eval(on_this, future_parent, equivalent, insert_below_next, src);
-        } else {
-            return vltl_sast_operation_convert_amd64_load(on_this, future_parent, equivalent, insert_below_next, src);
-        }
+        return vltl_sast_operation_convert_amd64_eval(
+            on_this, future_parent, equivalent, insert_below_next, src
+        );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
         return vltl_sast_operation_convert_amd64_grouping_open(
@@ -2413,8 +2696,26 @@ int vltl_sast_operation_convert_amd64(
                    on_this, future_parent, equivalent, insert_below_next, src
                );
         break;
+    case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
+        return vltl_sast_operation_convert_amd64_index_open(
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
+        break;
+    case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
+        return vltl_sast_operation_convert_amd64_index_close(
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
+        break;
     case VLTL_AST_OPERATION_KIND_CALL:
         return vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src);
+        break;
+    case VLTL_AST_OPERATION_KIND_ADDRESS:
+        return vltl_sast_operation_convert_amd64_address(on_this, future_parent, equivalent, insert_below_next, src);
+        break;
+    case VLTL_AST_OPERATION_KIND_INDIRECTION:
+        return vltl_sast_operation_convert_amd64_indirection(
+            on_this, future_parent, equivalent, insert_below_next, src
+        );
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
         return vltl_sast_operation_convert_amd64_add(on_this, future_parent, equivalent, insert_below_next, src);
@@ -2657,6 +2958,30 @@ int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *oper
     return 0;
 }
 
+/*
+// TODO: Deduce that LEA should using LOAD operation itself based on type of lvalue
+int vltl_sast_tree_reshape_load_unpack(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
+    if(tree == NULL) {
+        VLTL_RETURN(EINVAL, "tree is NULL!");
+    } else if(operation == NULL) {
+        VLTL_RETURN(EINVAL, "operation is NULL!");
+    }
+
+    VLTL_SUPPOSE(
+        operation->kind == VLTL_SAST_OPERATION_KIND_LEA &&
+        operation->rchild && operation->rchild->kind == VLTL_SAST_OPERATION_KIND_LOAD &&
+        operation->rchild->rchild && operation->rchild->rchild->kind == VLTL_SAST_OPERATION_KIND_EVAL,
+        EINVAL,
+        "Address taken of not a load operation!"
+    );
+    
+    operation->rchild = operation->rchild->rchild;
+    operation->rchild->parent = operation;
+
+    return 0;
+}
+*/
+
 int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation *operation, size_t index) {
     VLTL_SUPPOSE(tree, EINVAL, "tree is NULL!");
     VLTL_SUPPOSE(operation, EINVAL, "operation is NULL!");
@@ -2730,6 +3055,83 @@ int vltl_sast_tree_reshape_call(Vltl_sast_tree *tree, Vltl_sast_operation *opera
     return 0;
 }
 
+int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
+    VLTL_SUPPOSE(tree != NULL, EINVAL, "tree being worked on is NULL!");
+    VLTL_SUPPOSE(operation != NULL, EINVAL, "source operation is NULL!");
+
+    // adopting a register with a store operation makes no sense
+    switch(operation->evaluates_to.kind) {
+    case VLTL_ASM_OPERAND_KIND_TBD:
+    case VLTL_ASM_OPERAND_KIND_REGISTER:
+        return 0;
+        break;
+    default:
+        break;
+    }
+
+    switch(operation->destination.kind) {
+    case VLTL_ASM_OPERAND_KIND_TBD:
+    case VLTL_ASM_OPERAND_KIND_REGISTER:
+        return 0;
+        break;
+    default:
+        break;
+    }
+
+    // see if should not reshape because a pointer is expected
+    switch(operation->parent->kind) {
+    case VLTL_SAST_OPERATION_KIND_TYPEAS:
+    case VLTL_SAST_OPERATION_KIND_CALL:
+        return 0;
+        break;
+    case VLTL_SAST_OPERATION_KIND_ADDRESS:
+    case VLTL_SAST_OPERATION_KIND_STORE:
+    case VLTL_SAST_OPERATION_KIND_FUNCTION:
+        if(operation == operation->parent->lchild) {
+            // exit early because this is the destination
+            return 0;
+        }
+        break;
+    case VLTL_SAST_OPERATION_KIND_LEA:
+    case VLTL_SAST_OPERATION_KIND_LOAD_SRC3:
+        if(operation == operation->parent->rchild) {
+            return 0;
+        }
+        break;
+    default:
+        break;
+    }
+
+    Vltl_sast_operation *store_operation = varena_alloc(
+            &vltl_global_allocator, sizeof(Vltl_sast_operation)
+            );
+    VLTL_SUPPOSE(store_operation, ENOMEM, "Allocation failed!");
+    Vltl_sast_operation *store_operation_dest = varena_alloc(
+            &vltl_global_allocator, sizeof(Vltl_sast_operation)
+            );
+    VLTL_SUPPOSE(store_operation_dest, ENOMEM, "Allocation failed!");
+
+    *store_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_STORE,
+        .belongs_to = operation->belongs_to,
+        .parent = NULL,
+        .lchild = store_operation_dest,
+        .evaluates_to = operation->evaluates_to
+    };
+    *store_operation_dest = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+        .belongs_to = operation->belongs_to,
+        .parent = store_operation,
+        .evaluates_to = vltl_asm_operand_tbd
+    };
+    VLTL_EXPECT(
+        vltl_sast_operation_adopt(operation->belongs_to, store_operation, operation),
+        "adoption failed!"
+    );
+
+    return 0;
+}
+
 int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     int ret = 0;
     if(tree == NULL || operation == NULL) {
@@ -2750,6 +3152,9 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
     }
 
     switch(operation->kind) {
+    case VLTL_SAST_OPERATION_KIND_EVAL:
+        VLTL_EXPECT(vltl_sast_tree_reshape_eval(tree, operation), "Failed to reshape eval operation!");
+        break;
     case VLTL_SAST_OPERATION_KIND_COMMA:
         VLTL_EXPECT(vltl_sast_tree_reshape_comma(tree, operation), "Failed to reshape comma operation!");
         break;

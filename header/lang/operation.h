@@ -11,6 +11,8 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_INVALID,
 
     VLTL_LANG_OPERATION_KIND_EQUALS,
+    VLTL_LANG_OPERATION_KIND_ADDRESS,
+    VLTL_LANG_OPERATION_KIND_INDIRECTION,
     VLTL_LANG_OPERATION_KIND_ADD,
     VLTL_LANG_OPERATION_KIND_SUB,
     VLTL_LANG_OPERATION_KIND_MUL,
@@ -20,6 +22,8 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_TYPEAS,
     VLTL_LANG_OPERATION_KIND_GROUPING_OPEN,
     VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE,
+    VLTL_LANG_OPERATION_KIND_INDEX_OPEN,
+    VLTL_LANG_OPERATION_KIND_INDEX_CLOSE,
     VLTL_LANG_OPERATION_KIND_GLOBAL,
     VLTL_LANG_OPERATION_KIND_CONSTANT,
     VLTL_LANG_OPERATION_KIND_LOCAL,
@@ -42,6 +46,8 @@ typedef struct vltl_lang_operation {
 } Vltl_lang_operation;
 
 extern struct vltl_lang_operation vltl_lang_operation_equals;
+extern struct vltl_lang_operation vltl_lang_operation_address;
+extern struct vltl_lang_operation vltl_lang_operation_indirection;
 extern struct vltl_lang_operation vltl_lang_operation_add;
 extern struct vltl_lang_operation vltl_lang_operation_sub;
 extern struct vltl_lang_operation vltl_lang_operation_mul;
@@ -51,6 +57,8 @@ extern struct vltl_lang_operation vltl_lang_operation_comma;
 extern struct vltl_lang_operation vltl_lang_operation_typeas;
 extern struct vltl_lang_operation vltl_lang_operation_grouping_open;
 extern struct vltl_lang_operation vltl_lang_operation_grouping_close;
+extern struct vltl_lang_operation vltl_lang_operation_index_open;
+extern struct vltl_lang_operation vltl_lang_operation_index_close;
 extern struct vltl_lang_operation vltl_lang_operation_global;
 extern struct vltl_lang_operation vltl_lang_operation_constant;
 extern struct vltl_lang_operation vltl_lang_operation_local;

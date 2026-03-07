@@ -32,6 +32,8 @@ extern "C" {
     long elif_statement_main(void);
     long else_statement_main(void);
     long while_statement_main(void);
+    long address_indirection_main(void);
+    long index_into_main(void);
     long tour_de_force_main(void);
 }
 
@@ -141,6 +143,15 @@ TEST(file, else_statement) {
 
 TEST(file, while_statement) {
     ASSERT_EQ(990, while_statement_main());
+}
+
+TEST(file, address_indirection) {
+    ASSERT_EQ(777, address_indirection_main());
+}
+
+TEST(file, index_into) {
+    // TODO: Implement arrays so that weird memory undefined layout behavior is missing
+    ASSERT_EQ(6, index_into_main());
 }
 
 TEST(file, tour_de_force) {

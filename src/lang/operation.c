@@ -6,6 +6,18 @@ Vltl_lang_operation vltl_lang_operation_equals = {
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
+Vltl_lang_operation vltl_lang_operation_address = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_ADDRESS,
+    .name = "&",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_indirection = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_INDIRECTION,
+    .name = "@",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
 Vltl_lang_operation vltl_lang_operation_add = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_ADD,
     .name = "+",
@@ -57,6 +69,18 @@ Vltl_lang_operation vltl_lang_operation_grouping_open = {
 Vltl_lang_operation vltl_lang_operation_grouping_close = {
     .operation_kind = VLTL_LANG_OPERATION_KIND_GROUPING_CLOSE,
     .name = ")",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_index_open = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_INDEX_OPEN,
+    .name = "[",
+    .type = &vltl_lang_type_long,
+    .accepted_fields = { 0 }
+};
+Vltl_lang_operation vltl_lang_operation_index_close = {
+    .operation_kind = VLTL_LANG_OPERATION_KIND_INDEX_CLOSE,
+    .name = "]",
     .type = &vltl_lang_type_long,
     .accepted_fields = { 0 }
 };
