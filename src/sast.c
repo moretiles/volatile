@@ -1,6 +1,7 @@
 #include <ds/iestack.h>
 #include <sast.h>
 #include <convert.h>
+#include <trace.h>
 
 #include <string.h>
 #include <errno.h>
@@ -44,6 +45,7 @@ bool vltl_sast_operation_kind_valid(const Vltl_sast_operation_kind operation_kin
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
     case VLTL_SAST_OPERATION_KIND_IF:
     case VLTL_SAST_OPERATION_KIND_ELIF:
@@ -75,8 +77,8 @@ int vltl_sast_operation_insert(
     int ret = 0;
     if(tree == NULL || new_child == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : tree is %p, new_child is %p!",
             (void *) tree, (void *) new_child
         );
@@ -85,13 +87,13 @@ int vltl_sast_operation_insert(
 
     if((parent != NULL && !vltl_sast_operation_valid(*parent))) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Parent exists and is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Parent exists and is invalid!");
         return ret;
     }
 
     if(!vltl_sast_operation_valid(*new_child)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "new_child exists and is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "new_child exists and is invalid!");
         return ret;
     }
 
@@ -100,7 +102,7 @@ int vltl_sast_operation_insert(
         if(parent == NULL) {
             if(tree->root != NULL) {
                 ret = EINVAL;
-                IESTACK_PUSH(&vltl_global_errors, ret, "Parent is NULL in bad location!");
+                IESTACK_PUSH2(vltl_global_errors, ret, "Parent is NULL in bad location!");
                 return ret;
             }
 
@@ -130,8 +132,8 @@ int vltl_sast_operation_adopt(
     int ret = 0;
     if(tree == NULL || new_parent == NULL || adopt_this == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : tree = %p, new_parent = %p, adopt_this = %p!",
             (void *) tree, (void *) new_parent, (void *) adopt_this
         );
@@ -140,13 +142,13 @@ int vltl_sast_operation_adopt(
 
     if(!vltl_sast_operation_valid(*new_parent)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like new_parent is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "It looks like new_parent is invalid!");
         return ret;
     }
 
     if(!vltl_sast_operation_valid(*adopt_this)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "It looks like adopt_this is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "It looks like adopt_this is invalid!");
         return ret;
     }
 
@@ -210,6 +212,7 @@ size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation) {
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_RETURN:
     case VLTL_SAST_OPERATION_KIND_ADDRESS:
     case VLTL_SAST_OPERATION_KIND_INDIRECTION:
@@ -371,8 +374,8 @@ int vltl_sast_operation_insert_operand(
     int ret = 0;
     if(tree == NULL || created_child_ptr == NULL || parent == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : tree = %p, created_child_ptr = %p, parent = %p!",
             (void *) tree, (void *) created_child_ptr, (void *) parent
         );
@@ -381,21 +384,21 @@ int vltl_sast_operation_insert_operand(
 
     if(!vltl_asm_operand_valid(operand)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "operand is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "operand is invalid!");
         return ret;
     }
 
     Vltl_asm_operand empty_destination = { 0 };
     ret = vltl_sast_operation_init(created_here, VLTL_SAST_OPERATION_KIND_EVAL, operand, empty_destination);
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure initializing created_here!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure initializing created_here!");
         return ret;
     }
 
     size_t parent_argc = vltl_sast_operation_args_argc(*parent);
     if(parent_argc >= vltl_sast_operation_expected_argc(*parent)) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Cannot insert any additional arguments for parent!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Cannot insert any additional arguments for parent!");
         return ret;
     }
     return vltl_sast_operation_insert(tree, parent, created_here, new_child_index);
@@ -485,6 +488,9 @@ int vltl_sast_operation_kind_detokenize(
         break;
     case VLTL_SAST_OPERATION_KIND_LOCAL:
         src_string = "LOCAL";
+        break;
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
+        src_string = "EXTERNAL";
         break;
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         src_string = "FUNCTION";
@@ -826,87 +832,87 @@ int vltl_sast_tree_connect_resolve_tbd(
     Vltl_sast_operation *resolve_me, bool *inuse_above_here,
     const Vltl_asm_register_amd64 *preferred_registers, size_t preferred_registers_cap
 ) {
-        if(vltl_global_context.function == NULL) {
-            // return early, resolving TBD only makes sense when inside of function
-            return 0;
-        }
+    if(vltl_global_context.function == NULL) {
+        // return early, resolving TBD only makes sense when inside of function
+        return 0;
+    }
 
-        if(resolve_me->kind != VLTL_SAST_OPERATION_KIND_EVAL) {
-            return 0;
-        }
-        VLTL_SUPPOSE(resolve_me->parent != NULL, ENOTRECOVERABLE, "eval_operation has no parent!");
-        VLTL_SUPPOSE(
-            resolve_me->parent->lchild == resolve_me,
-            ENOTRECOVERABLE,
-            "resolve_me is not its parents first argument!"
-        );
+    if(resolve_me->kind != VLTL_SAST_OPERATION_KIND_EVAL) {
+        return 0;
+    }
+    IESTACK_SUPPOSE(resolve_me->parent != NULL, ENOTRECOVERABLE, "eval_operation has no parent!");
+    IESTACK_SUPPOSE(
+        resolve_me->parent->lchild == resolve_me,
+        ENOTRECOVERABLE,
+        "resolve_me is not its parents first argument!"
+    );
 
-        Vltl_asm_operand use_this = { 0 };
-        bool done = false;
-        for(size_t i = 0; !done && i < preferred_registers_cap; i++) {
-            if(!inuse_above_here[preferred_registers[i]]) {
-                switch(preferred_registers[i]) {
-                case VLTL_ASM_REGISTER_AMD64_RAX:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rax;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RBX:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rbx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RCX:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RDX:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rdx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RDI:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rdi;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RSI:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rsi;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RSP:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rsp;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RBP:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rbp;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R8:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r8;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R9:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r9;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R10:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r10;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R11:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r11;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R12:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r12;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R13:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r13;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R14:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r14;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R15:
-                    use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r15;
-                    break;
-                default:
-                    VLTL_RETURN(EINVAL, "Bad register value!");
-                    break;
-                }
-
-                done = true;
+    Vltl_asm_operand use_this = { 0 };
+    bool done = false;
+    for(size_t i = 0; !done && i < preferred_registers_cap; i++) {
+        if(!inuse_above_here[preferred_registers[i]]) {
+            switch(preferred_registers[i]) {
+            case VLTL_ASM_REGISTER_AMD64_RAX:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rax;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RBX:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rbx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RCX:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RDX:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rdx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RDI:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rdi;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RSI:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rsi;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RSP:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rsp;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RBP:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_rbp;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R8:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r8;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R9:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r9;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R10:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r10;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R11:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r11;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R12:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r12;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R13:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r13;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R14:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r14;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R15:
+                use_this = (Vltl_asm_operand) vltl_asm_operand_amd64_r15;
+                break;
+            default:
+                IESTACK_RETURN(EINVAL, "Bad register value!");
+                break;
             }
-        }
-        VLTL_SUPPOSE(done, ENOTRECOVERABLE, "No free destination!");
-        resolve_me->evaluates_to = use_this;
-        resolve_me->destination = use_this;
 
-   return 0;
+            done = true;
+        }
+    }
+    IESTACK_SUPPOSE(done, ENOTRECOVERABLE, "No free destination!");
+    resolve_me->evaluates_to = use_this;
+    resolve_me->destination = use_this;
+
+    return 0;
 }
 
 int vltl_sast_tree_connect_adopt_tbd(
@@ -915,12 +921,12 @@ int vltl_sast_tree_connect_adopt_tbd(
 ) {
     Vltl_sast_operation *store_operation = varena_alloc(
             &vltl_global_allocator, sizeof(Vltl_sast_operation)
-            );
-    VLTL_SUPPOSE(store_operation, ENOMEM, "Allocation failed!");
+                                           );
+    IESTACK_SUPPOSE(store_operation, ENOMEM, "Allocation failed!");
     Vltl_sast_operation *store_operation_dest = varena_alloc(
             &vltl_global_allocator, sizeof(Vltl_sast_operation)
-            );
-    VLTL_SUPPOSE(store_operation_dest, ENOMEM, "Allocation failed!");
+        );
+    IESTACK_SUPPOSE(store_operation_dest, ENOMEM, "Allocation failed!");
 
     *store_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_STORE,
@@ -936,239 +942,239 @@ int vltl_sast_tree_connect_adopt_tbd(
         .parent = store_operation,
         .evaluates_to = vltl_asm_operand_tbd
     };
-    VLTL_EXPECT(
+    IESTACK_HANDLE(
         vltl_sast_operation_adopt(adopt_me->belongs_to, store_operation, adopt_me),
         "adoption failed!"
     );
     if(vltl_global_context.function != NULL) {
-        VLTL_EXPECT(
-                vltl_sast_tree_connect_resolve_tbd(
-                    store_operation_dest, inuse_above_here, preferred_registers, preferred_registers_cap
-                    ),
-                "No free register!"
-                );
+        IESTACK_HANDLE(
+            vltl_sast_tree_connect_resolve_tbd(
+                store_operation_dest, inuse_above_here, preferred_registers, preferred_registers_cap
+            ),
+            "No free register!"
+        );
         store_operation->destination = store_operation_dest->evaluates_to;
     }
 
     return 0;
-} 
+}
 
 int vltl_sast_tree_connect_protect_siblings(
     Vltl_sast_operation *parent, size_t argument_index,
     bool *inuse_from_parent, bool *inuse_below_parent, bool *inuse_below_child
 ) {
-        // protect lower-index operations if arguments of connect_me->arguments[i] clobber their destination
-        for(
-            Vltl_asm_register_amd64 register_as_index = VLTL_ASM_REGISTER_AMD64_INVALID + 1;
-            register_as_index < VLTL_ASM_REGISTER_AMD64_EOF;
-            register_as_index++
-        ) {
-            if(vltl_global_context.function == NULL) {
-                // Protecting previous operations only makes sense when inside a function
-                inuse_below_parent[register_as_index] =
-                    inuse_below_parent[register_as_index] || inuse_below_child[register_as_index];
+    // protect lower-index operations if arguments of connect_me->arguments[i] clobber their destination
+    for(
+        Vltl_asm_register_amd64 register_as_index = VLTL_ASM_REGISTER_AMD64_INVALID + 1;
+        register_as_index < VLTL_ASM_REGISTER_AMD64_EOF;
+        register_as_index++
+    ) {
+        if(vltl_global_context.function == NULL) {
+            // Protecting previous operations only makes sense when inside a function
+            inuse_below_parent[register_as_index] =
+                inuse_below_parent[register_as_index] || inuse_below_child[register_as_index];
+            continue;
+        }
+
+
+        if(!inuse_below_child[register_as_index] || !inuse_from_parent[register_as_index]) {
+            continue;
+        }
+
+        for(size_t j = 0; j < argument_index; j++) {
+            if(parent->arguments[j]->destination.kind != VLTL_ASM_OPERAND_KIND_REGISTER) {
+                continue;
+            }
+            if(parent->arguments[j]->destination.as_register.value_amd64 != register_as_index) {
                 continue;
             }
 
-
-            if(!inuse_below_child[register_as_index] || !inuse_from_parent[register_as_index]) {
-                continue;
-            }
-
-            for(size_t j = 0; j < argument_index; j++) {
-                if(parent->arguments[j]->destination.kind != VLTL_ASM_OPERAND_KIND_REGISTER) {
-                    continue;
-                }
-                if(parent->arguments[j]->destination.as_register.value_amd64 != register_as_index) {
-                    continue;
-                }
-
-                char *tmp_local_name = NULL;
-                Vltl_asm_operand from_that = { 0 };
-                switch(register_as_index) {
-                case VLTL_ASM_REGISTER_AMD64_RAX:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rax;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RBX:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rbx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RCX:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RDX:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rdx;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RDI:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rdi;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RSI:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rsi;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RSP:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rsp;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_RBP:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rbp;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R8:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r8;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R9:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r9;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R10:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r10;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R11:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r11;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R12:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r12;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R13:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r13;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R14:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r14;
-                    break;
-                case VLTL_ASM_REGISTER_AMD64_R15:
-                    from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r15;
-                    break;
-                default:
-                    VLTL_RETURN(EINVAL, "Bad register value!");
-                    break;
-                }
-
-                // prepare local
-                {
-                    Vltl_lang_literal *literal_that_is_0 = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_lang_literal)
-                                                           );
-                    *literal_that_is_0 = (Vltl_lang_literal) {
-                        .name = NULL,
-                        .type = &vltl_lang_type_long,
-                        .fields = { 0 }
-                    };
-
-                    const size_t dest_cap = 18 + 7;
-                    char *dest = varena_alloc(&vltl_global_allocator, dest_cap);;
-                    int dest_len_helper = 0;
-                    int ret = 0;
-
-                    if(vltl_global_context.function == NULL) {
-                        VLTL_RETURN(ENOTRECOVERABLE, "Why are you not in a function?!?");
-                    }
-
-                    BTRC_SNPRINTF(
-                        &ret, &dest_len_helper,
-                        dest, dest_cap,
-                        "_tmp_%p",
-                        (void *) vltl_global_context.function->num_tmp_variables++
-                    );
-                    if(ret) {
-                        return ret;
-                    }
-                    tmp_local_name = dest;
-                    ret = vltl_lang_function_local_set(
-                              vltl_global_context.function, tmp_local_name, &vltl_lang_type_long, NULL, literal_that_is_0
-                          );
-                    if(ret) {
-                        return ret;
-                    }
-                }
-
-                // create store operation that stores from target register to tmp_location
-                {
-                    Vltl_sast_operation *store_operation_from_target_to_tmp = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-                    Vltl_sast_operation *store_operation_from_target_to_tmp_dest = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-                    Vltl_sast_operation *store_operation_from_target_to_tmp_src = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-                    *store_operation_from_target_to_tmp = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_STORE,
-                        .parent = NULL,
-                        .lchild = store_operation_from_target_to_tmp_dest,
-                        .rchild = store_operation_from_target_to_tmp_src
-                    };
-                    *store_operation_from_target_to_tmp_dest = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                        .parent = NULL,
-                        .evaluates_to = {
-                            .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                            .as_memory = {
-                                .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                                .name = tmp_local_name,
-                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
-                                .value = 0
-                            }
-                        }
-                    };
-                    *store_operation_from_target_to_tmp_src = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                        .parent = NULL,
-                        .evaluates_to = from_that
-                    };
-                    int ret = vltl_sast_operation_after_append(parent->arguments[j], store_operation_from_target_to_tmp);
-                    if(ret) {
-                        return ret;
-                    }
-                }
-
-                // create store operation that stores from tmp_location to target register
-                {
-                    Vltl_sast_operation *store_operation_to_target_from_tmp = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-                    Vltl_sast_operation *store_operation_to_target_from_tmp_dest = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-                    Vltl_sast_operation *store_operation_to_target_from_tmp_src = varena_alloc(
-                            &vltl_global_allocator, sizeof(Vltl_sast_operation)
-                        );
-
-                    *store_operation_to_target_from_tmp = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_STORE,
-                        .parent = NULL,
-                        .lchild = store_operation_to_target_from_tmp_dest,
-                        .rchild = store_operation_to_target_from_tmp_src
-                    };
-                    *store_operation_to_target_from_tmp_dest = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                        .parent = NULL,
-                        .evaluates_to = from_that
-                    };
-                    *store_operation_to_target_from_tmp_src = (Vltl_sast_operation) {
-                        .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                        .parent = NULL,
-                        .evaluates_to = {
-                            .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                            .as_memory = {
-                                .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                                .name = tmp_local_name,
-                                .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
-                                .value = 0
-                            }
-                        }
-                    };
-                    int ret = vltl_sast_operation_before_append(parent, store_operation_to_target_from_tmp);
-                    if(ret) {
-                        return ret;
-                    }
-                }
-
-                // break as no argument with index greater than j should be using the same destination register
+            char *tmp_local_name = NULL;
+            Vltl_asm_operand from_that = { 0 };
+            switch(register_as_index) {
+            case VLTL_ASM_REGISTER_AMD64_RAX:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rax;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RBX:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rbx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RCX:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RDX:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rdx;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RDI:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rdi;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RSI:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rsi;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RSP:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rsp;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_RBP:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_rbp;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R8:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r8;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R9:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r9;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R10:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r10;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R11:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r11;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R12:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r12;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R13:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r13;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R14:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r14;
+                break;
+            case VLTL_ASM_REGISTER_AMD64_R15:
+                from_that = (Vltl_asm_operand) vltl_asm_operand_amd64_r15;
+                break;
+            default:
+                IESTACK_RETURN(EINVAL, "Bad register value!");
                 break;
             }
 
-            inuse_below_parent[register_as_index] =
-                inuse_below_parent[register_as_index] || inuse_below_child[register_as_index];
+            // prepare local
+            {
+                Vltl_lang_literal *literal_that_is_0 = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_lang_literal)
+                                                       );
+                *literal_that_is_0 = (Vltl_lang_literal) {
+                    .name = NULL,
+                    .type = &vltl_lang_type_long,
+                    .fields = { 0 }
+                };
+
+                const size_t dest_cap = 18 + 7;
+                char *dest = varena_alloc(&vltl_global_allocator, dest_cap);;
+                int dest_len_helper = 0;
+                int ret = 0;
+
+                if(vltl_global_context.function == NULL) {
+                    IESTACK_RETURN(ENOTRECOVERABLE, "Why are you not in a function?!?");
+                }
+
+                BTRC_SNPRINTF(
+                    &ret, &dest_len_helper,
+                    dest, dest_cap,
+                    "_tmp_%p",
+                    (void *) vltl_global_context.function->num_tmp_variables++
+                );
+                if(ret) {
+                    return ret;
+                }
+                tmp_local_name = dest;
+                ret = vltl_lang_function_local_set(
+                          vltl_global_context.function, tmp_local_name, &vltl_lang_type_long, NULL, literal_that_is_0
+                      );
+                if(ret) {
+                    return ret;
+                }
+            }
+
+            // create store operation that stores from target register to tmp_location
+            {
+                Vltl_sast_operation *store_operation_from_target_to_tmp = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+                Vltl_sast_operation *store_operation_from_target_to_tmp_dest = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+                Vltl_sast_operation *store_operation_from_target_to_tmp_src = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+                *store_operation_from_target_to_tmp = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_STORE,
+                    .parent = NULL,
+                    .lchild = store_operation_from_target_to_tmp_dest,
+                    .rchild = store_operation_from_target_to_tmp_src
+                };
+                *store_operation_from_target_to_tmp_dest = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                    .parent = NULL,
+                    .evaluates_to = {
+                        .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+                        .as_memory = {
+                            .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                            .name = tmp_local_name,
+                            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
+                            .value = 0
+                        }
+                    }
+                };
+                *store_operation_from_target_to_tmp_src = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                    .parent = NULL,
+                    .evaluates_to = from_that
+                };
+                int ret = vltl_sast_operation_after_append(parent->arguments[j], store_operation_from_target_to_tmp);
+                if(ret) {
+                    return ret;
+                }
+            }
+
+            // create store operation that stores from tmp_location to target register
+            {
+                Vltl_sast_operation *store_operation_to_target_from_tmp = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+                Vltl_sast_operation *store_operation_to_target_from_tmp_dest = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+                Vltl_sast_operation *store_operation_to_target_from_tmp_src = varena_alloc(
+                        &vltl_global_allocator, sizeof(Vltl_sast_operation)
+                    );
+
+                *store_operation_to_target_from_tmp = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_STORE,
+                    .parent = NULL,
+                    .lchild = store_operation_to_target_from_tmp_dest,
+                    .rchild = store_operation_to_target_from_tmp_src
+                };
+                *store_operation_to_target_from_tmp_dest = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                    .parent = NULL,
+                    .evaluates_to = from_that
+                };
+                *store_operation_to_target_from_tmp_src = (Vltl_sast_operation) {
+                    .kind = VLTL_SAST_OPERATION_KIND_EVAL,
+                    .parent = NULL,
+                    .evaluates_to = {
+                        .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
+                        .as_memory = {
+                            .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
+                            .name = tmp_local_name,
+                            .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
+                            .value = 0
+                        }
+                    }
+                };
+                int ret = vltl_sast_operation_before_append(parent, store_operation_to_target_from_tmp);
+                if(ret) {
+                    return ret;
+                }
+            }
+
+            // break as no argument with index greater than j should be using the same destination register
+            break;
         }
 
-  return 0;
+        inuse_below_parent[register_as_index] =
+            inuse_below_parent[register_as_index] || inuse_below_child[register_as_index];
+    }
+
+    return 0;
 }
 
 uint64_t vltl_sast_tree_connect_add_two(uint64_t arg_one, const uint64_t arg_two) {
@@ -1195,10 +1201,10 @@ int vltl_sast_tree_connect_evaluate_two(
     Vltl_sast_operation *parent, Vltl_sast_operation *child_one, Vltl_sast_operation *child_two,
     uint64_t math_function(const uint64_t arg_one, const uint64_t arg_two)
 ) {
-    VLTL_SUPPOSE(parent != NULL, EINVAL, "parent is NULL!");
-    VLTL_SUPPOSE(child_one != NULL, EINVAL, "child_one is NULL!");
-    VLTL_SUPPOSE(child_two != NULL, EINVAL, "child_two is NULL!");
-    VLTL_SUPPOSE(math_function != NULL, EINVAL, "math_function is NULL!");
+    IESTACK_SUPPOSE(parent != NULL, EINVAL, "parent is NULL!");
+    IESTACK_SUPPOSE(child_one != NULL, EINVAL, "child_one is NULL!");
+    IESTACK_SUPPOSE(child_two != NULL, EINVAL, "child_two is NULL!");
+    IESTACK_SUPPOSE(math_function != NULL, EINVAL, "math_function is NULL!");
 
     bool all_children_can_be_evaluated_now = true;
     all_children_can_be_evaluated_now &= (child_one->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_IMMEDIATE);
@@ -1211,9 +1217,9 @@ int vltl_sast_tree_connect_evaluate_two(
                 .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64,
                 .representation = VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10,
                 .value = math_function(
-                    child_one->evaluates_to.as_immediate.value,
-                    child_two->evaluates_to.as_immediate.value
-                )
+                             child_one->evaluates_to.as_immediate.value,
+                             child_two->evaluates_to.as_immediate.value
+                         )
             }
         };
     }
@@ -1241,12 +1247,12 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     };
     const size_t use_these_registers_amd64_cap = sizeof(use_these_registers_amd64) / sizeof(use_these_registers_amd64[0]);
 
-    VLTL_SUPPOSE(connect_me, EINVAL, "connect_me is NULL!");
-    VLTL_SUPPOSE(inuse_above_here, EINVAL, "inuse_above_here is NULL!");
-    VLTL_SUPPOSE(inuse_below_here, EINVAL, "inuse_below_here is NULL!");
+    IESTACK_SUPPOSE(connect_me, EINVAL, "connect_me is NULL!");
+    IESTACK_SUPPOSE(inuse_above_here, EINVAL, "inuse_above_here is NULL!");
+    IESTACK_SUPPOSE(inuse_below_here, EINVAL, "inuse_below_here is NULL!");
 
     // TODO: Support other ISA
-    VLTL_SUPPOSE(vltl_global_config.isa == VLTL_ISA_AMD64, ENOTRECOVERABLE, "Only AMD64 is supported!");
+    IESTACK_SUPPOSE(vltl_global_config.isa == VLTL_ISA_AMD64, ENOTRECOVERABLE, "Only AMD64 is supported!");
 
     // Manage what registers are inuse here
     bool inuse_from_here[VLTL_ASM_REGISTER_AMD64_EOF] = { 0 };
@@ -1255,7 +1261,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
 
     // Does this operation itself represent a eval_operation for a register that is TBD
     if(connect_me->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_TBD) {
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_resolve_tbd(
                 connect_me, inuse_above_here, use_these_registers_amd64, use_these_registers_amd64_cap
             ),
@@ -1273,7 +1279,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     // Protect arguments of connect_me from their siblings and sibling's children
     for(size_t i = 0; i < vltl_sast_operation_args_argc(*connect_me); i++) {
         bool inuse_below_child[VLTL_ASM_REGISTER_AMD64_EOF] = { 0 };
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_recurse(connect_me->arguments[i], inuse_above_child, inuse_below_child),
             "Unexpected failure recursing!"
         );
@@ -1281,12 +1287,12 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
         if(connect_me->arguments[i]->destination.kind == VLTL_ASM_OPERAND_KIND_REGISTER) {
             // protect connect_me->arguments[i] from a lower-index sibling with the same destination register
             if(inuse_from_here[connect_me->arguments[i]->destination.as_register.value_amd64]) {
-                VLTL_EXPECT(
+                IESTACK_HANDLE(
                     vltl_sast_tree_connect_adopt_tbd(
                         connect_me->arguments[i], inuse_from_here,
                         use_these_registers_amd64, use_these_registers_amd64_cap
-                   ),
-                   "Adopting free register failed!"
+                    ),
+                    "Adopting free register failed!"
                 );
             }
 
@@ -1295,7 +1301,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
             inuse_below_here[connect_me->arguments[i]->destination.as_register.value_amd64] = true;
         }
 
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_protect_siblings(
                 connect_me, i, inuse_from_here, inuse_below_here, inuse_below_child
             ),
@@ -1330,6 +1336,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_STORE:
         connect_me->destination = connect_me->arguments[0]->evaluates_to;
         break;
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         connect_me->evaluates_to = connect_me->arguments[0]->evaluates_to;
         break;
@@ -1348,14 +1355,14 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_UNSET:
     case VLTL_SAST_OPERATION_KIND_INVALID:
     case VLTL_SAST_OPERATION_KIND_EOF:
-        VLTL_RETURN(ENOTRECOVERABLE, "Invalid operation has been placed in tree!");
+        IESTACK_RETURN(ENOTRECOVERABLE, "Invalid operation has been placed in tree!");
         break;
     }
 
     // can parent evaluate to one of its arguments value?
     switch(connect_me->kind) {
     case VLTL_SAST_OPERATION_KIND_ADD:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_evaluate_two(
                 connect_me, connect_me->lchild, connect_me->rchild, vltl_sast_tree_connect_add_two
             ),
@@ -1363,7 +1370,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
         );
         break;
     case VLTL_SAST_OPERATION_KIND_SUB:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_evaluate_two(
                 connect_me, connect_me->lchild, connect_me->rchild, vltl_sast_tree_connect_sub_two
             ),
@@ -1371,7 +1378,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
         );
         break;
     case VLTL_SAST_OPERATION_KIND_MUL:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_evaluate_two(
                 connect_me, connect_me->lchild, connect_me->rchild, vltl_sast_tree_connect_mul_two
             ),
@@ -1379,7 +1386,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
         );
         break;
     case VLTL_SAST_OPERATION_KIND_DIV:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_evaluate_two(
                 connect_me, connect_me->lchild, connect_me->rchild, vltl_sast_tree_connect_div_two
             ),
@@ -1387,7 +1394,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
         );
         break;
     case VLTL_SAST_OPERATION_KIND_TEST_EQUALS:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_connect_evaluate_two(
                 connect_me, connect_me->lchild, connect_me->rchild, vltl_sast_tree_connect_test_equals
             ),
@@ -1418,6 +1425,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_TYPEAS:
     case VLTL_SAST_OPERATION_KIND_CSV:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_LOAD:
@@ -1428,7 +1436,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_UNSET:
     case VLTL_SAST_OPERATION_KIND_INVALID:
     case VLTL_SAST_OPERATION_KIND_EOF:
-        VLTL_RETURN(ENOTRECOVERABLE, "Invalid operation has been placed in tree!");
+        IESTACK_RETURN(ENOTRECOVERABLE, "Invalid operation has been placed in tree!");
         break;
     }
 
@@ -1466,14 +1474,14 @@ vltl_sast_tree_connect_recurse_end:
 }
 
 int vltl_sast_tree_connect(Vltl_sast_tree *tree) {
-    VLTL_SUPPOSE(tree, EINVAL, "tree is NULL!");
-    VLTL_SUPPOSE(tree->root, EINVAL, "tree->root is NULL!");
+    IESTACK_SUPPOSE(tree, EINVAL, "tree is NULL!");
+    IESTACK_SUPPOSE(tree->root, EINVAL, "tree->root is NULL!");
     // TODO: Support other ISA
-    VLTL_SUPPOSE(vltl_global_config.isa == VLTL_ISA_AMD64, ENOTRECOVERABLE, "Only AMD64 is supported!");
+    IESTACK_SUPPOSE(vltl_global_config.isa == VLTL_ISA_AMD64, ENOTRECOVERABLE, "Only AMD64 is supported!");
 
     bool inuse_above_root[VLTL_ASM_REGISTER_AMD64_EOF] = { 0 };
     bool inuse_below_root[VLTL_ASM_REGISTER_AMD64_EOF] = { 0 };
-    VLTL_EXPECT(vltl_sast_tree_connect_recurse(tree->root, inuse_above_root, inuse_below_root), "Unexpected failure recursing!");
+    IESTACK_HANDLE(vltl_sast_tree_connect_recurse(tree->root, inuse_above_root, inuse_below_root), "Unexpected failure recursing!");
     return 0;
 }
 
@@ -1966,24 +1974,24 @@ int vltl_sast_operation_convert_amd64_indirection(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-        if(src->parent == NULL || src->parent->lchild != src) {
-            return vltl_sast_operation_convert_amd64_indirection_get(
-                on_this, future_parent, equivalent, insert_below_next, src
-            );
-        }
+    if(src->parent == NULL || src->parent->lchild != src) {
+        return vltl_sast_operation_convert_amd64_indirection_get(
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
+    }
 
-        switch(src->parent->kind) {
-        case VLTL_AST_OPERATION_KIND_EQUALS:
-            return vltl_sast_operation_convert_amd64_indirection_set(
-                on_this, future_parent, equivalent, insert_below_next, src
-            );
-            break;
-        default:
-            return vltl_sast_operation_convert_amd64_indirection_get(
-                on_this, future_parent, equivalent, insert_below_next, src
-            );
-            break;
-        }
+    switch(src->parent->kind) {
+    case VLTL_AST_OPERATION_KIND_EQUALS:
+        return vltl_sast_operation_convert_amd64_indirection_set(
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
+        break;
+    default:
+        return vltl_sast_operation_convert_amd64_indirection_get(
+                   on_this, future_parent, equivalent, insert_below_next, src
+               );
+        break;
+    }
 }
 
 int vltl_sast_operation_convert_amd64_add(
@@ -2357,6 +2365,33 @@ int vltl_sast_operation_convert_amd64_function(
     return 0;
 }
 
+int vltl_sast_operation_convert_amd64_external(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *external_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(external_operation == NULL) {
+        return ENOMEM;
+    }
+
+    (void) src;
+    *external_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EXTERNAL,
+        .belongs_to = on_this,
+        .parent = NULL,
+    };
+
+    *equivalent = external_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // push once for child
+    vstack_push(insert_below_next, &external_operation);
+    return 0;
+}
+
 int vltl_sast_operation_convert_amd64_body_open(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
@@ -2581,16 +2616,16 @@ int vltl_sast_operation_convert_amd64_index_open(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
 ) {
-    Vltl_sast_operation *lea_operation_variable = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(lea_operation_variable != NULL, EINVAL, "No memory!")
-    Vltl_sast_operation *lea_operation_variable_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(lea_operation_variable_dest != NULL, EINVAL, "No memory!")
+    Vltl_sast_operation *load_operation_variable = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    IESTACK_SUPPOSE(load_operation_variable != NULL, EINVAL, "No memory!");
+    Vltl_sast_operation *load_operation_variable_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    IESTACK_SUPPOSE(load_operation_variable_dest != NULL, EINVAL, "No memory!");
     Vltl_sast_operation *load_operation_index = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(load_operation_index != NULL, EINVAL, "No memory!")
+    IESTACK_SUPPOSE(load_operation_index != NULL, EINVAL, "No memory!");
     Vltl_sast_operation *load_operation_index_dest = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(load_operation_index_dest != NULL, EINVAL, "No memory!")
+    IESTACK_SUPPOSE(load_operation_index_dest != NULL, EINVAL, "No memory!");
     Vltl_sast_operation *load_operation_index_zero = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(load_operation_index_zero != NULL, EINVAL, "No memory!")
+    IESTACK_SUPPOSE(load_operation_index_zero != NULL, EINVAL, "No memory!");
 
     // don't use src for anything
     (void) src;
@@ -2599,10 +2634,10 @@ int vltl_sast_operation_convert_amd64_index_open(
         .belongs_to = on_this,
         .parent = NULL,
         .arguments[0] = load_operation_index_dest,
-        .arguments[1] = lea_operation_variable,
-        .arguments[2] = load_operation_index_zero,
-        .arguments[3] = NULL,
-        .destination = vltl_asm_operand_tbd
+                        .arguments[1] = load_operation_variable,
+                                        .arguments[2] = load_operation_index_zero,
+                                            .arguments[3] = NULL,
+                                                .destination = vltl_asm_operand_tbd
     };
     *load_operation_index_dest = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_EVAL,
@@ -2623,16 +2658,16 @@ int vltl_sast_operation_convert_amd64_index_open(
             }
         }
     };
-    *lea_operation_variable = (Vltl_sast_operation) {
-        .kind = VLTL_SAST_OPERATION_KIND_LEA,
+    *load_operation_variable = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_LOAD,
         .belongs_to = on_this,
         .parent = load_operation_index,
-        .lchild = lea_operation_variable_dest
+        .lchild = load_operation_variable_dest
     };
-    *lea_operation_variable_dest = (Vltl_sast_operation) {
+    *load_operation_variable_dest = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_EVAL,
         .belongs_to = on_this,
-        .parent = lea_operation_variable,
+        .parent = load_operation_variable,
         .evaluates_to = vltl_asm_operand_tbd
     };
 
@@ -2645,7 +2680,7 @@ int vltl_sast_operation_convert_amd64_index_open(
     // push once for variable itself, then once for index value, then throw the index_close into the trash
     vstack_push(insert_below_next, &load_operation_index);
     vstack_push(insert_below_next, &load_operation_index);
-    vstack_push(insert_below_next, &lea_operation_variable);
+    vstack_push(insert_below_next, &load_operation_variable);
     return 0;
 }
 
@@ -2682,100 +2717,115 @@ int vltl_sast_operation_convert_amd64(
 ) {
     switch(src->kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
-        return vltl_sast_operation_convert_amd64_eval(
-            on_this, future_parent, equivalent, insert_below_next, src
-        );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_eval(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
-        return vltl_sast_operation_convert_amd64_grouping_open(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_grouping_open(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
-        return vltl_sast_operation_convert_amd64_grouping_close(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_grouping_close(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
-        return vltl_sast_operation_convert_amd64_index_open(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_index_open(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
-        return vltl_sast_operation_convert_amd64_index_close(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_index_close(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
-        return vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ADDRESS:
-        return vltl_sast_operation_convert_amd64_address(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_address(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_INDIRECTION:
-        return vltl_sast_operation_convert_amd64_indirection(
-            on_this, future_parent, equivalent, insert_below_next, src
-        );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_indirection(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
-        return vltl_sast_operation_convert_amd64_add(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_add(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_SUB:
-        return vltl_sast_operation_convert_amd64_sub(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_sub(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_MUL:
-        return vltl_sast_operation_convert_amd64_mul(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_mul(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_DIV:
-        return vltl_sast_operation_convert_amd64_div(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_div(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
-        return vltl_sast_operation_convert_amd64_test_equals(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_test_equals(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_COMMA:
-        return vltl_sast_operation_convert_amd64_comma(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_comma(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_CSV:
-        return vltl_sast_operation_convert_amd64_csv(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_csv(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_TYPEAS:
-        return vltl_sast_operation_convert_amd64_typeas(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_typeas(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
-        return vltl_sast_operation_convert_amd64_store(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_store(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
-        return vltl_sast_operation_convert_amd64_global(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_global(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
-        return vltl_sast_operation_convert_amd64_constant(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_constant(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_LOCAL:
-        return vltl_sast_operation_convert_amd64_local(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_local(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
+        break;
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_external(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
-        return vltl_sast_operation_convert_amd64_function(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_function(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_IF:
-        return vltl_sast_operation_convert_amd64_if(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_if(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ELIF:
-        return vltl_sast_operation_convert_amd64_elif(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_elif(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ELSE:
-        return vltl_sast_operation_convert_amd64_else(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_else(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_WHILE:
-        return vltl_sast_operation_convert_amd64_while(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_while(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
-        return vltl_sast_operation_convert_amd64_body_open(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_body_open(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
-        return vltl_sast_operation_convert_amd64_body_close(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_body_close(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_RETURN:
-        return vltl_sast_operation_convert_amd64_return(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_return(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     default:
         // not implemented yet
@@ -2783,6 +2833,11 @@ int vltl_sast_operation_convert_amd64(
         break;
     }
 
+    (*equivalent)->traced_by = src->traced_by;
+    if(src->traced_by == NULL) {
+        printf("bad!");
+    }
+    (*equivalent)->traced_by->as_sast = *equivalent;
     return 0;
 }
 
@@ -2799,12 +2854,12 @@ int vltl_sast_operation_convert(
     case VLTL_ISA_AMD64:
         ret = vltl_sast_operation_convert_amd64(on_this, future_parent, equivalent, insert_below_next, src);
         if(ret) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when converting under AMD64!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when converting under AMD64!");
         }
         break;
     default:
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unknown ISA, unable to convert sast_operation to ast_operation!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unknown ISA, unable to convert sast_operation to ast_operation!");
         break;
     }
 
@@ -2821,8 +2876,8 @@ static int vltl_sast_tree_convert_helper(
     Vltl_sast_operation *insert_below = NULL;
     if(dest == NULL || src == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : dest = %p, src = %p!",
             (void *) dest, (void *) src
         );
@@ -2831,7 +2886,7 @@ static int vltl_sast_tree_convert_helper(
 
     ret = vstack_pop(ast_operations_to_visit, &current_operation);
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
         return ret;
     } else if(current_operation == NULL) {
         return 0;
@@ -2839,7 +2894,7 @@ static int vltl_sast_tree_convert_helper(
         vltl_ast_operation_argc(*current_operation) != vltl_ast_operation_expected_argc(*current_operation)
     ) {
         ret = EINVAL;
-        IESTACK_PUSH(&vltl_global_errors, ret, "The number of arguments src has is invalid!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "The number of arguments src has is invalid!");
         return ret;
     }
 
@@ -2849,8 +2904,8 @@ static int vltl_sast_tree_convert_helper(
         insert_below_argc = vltl_sast_operation_args_argc(*insert_below);
         if(insert_below_argc >= vltl_sast_operation_expected_argc(*insert_below)) {
             ret = EXFULL;
-            IESTACK_PUSH(
-                &vltl_global_errors, ret,
+            IESTACK_PUSH2(
+                vltl_global_errors, ret,
                 "The sast_operation dest cannot support any additonal arguments!"
             );
             return ret;
@@ -2858,7 +2913,7 @@ static int vltl_sast_tree_convert_helper(
     } else if(ret == ENODATA) {
         insert_below = NULL;
     } else {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vstack_pop!");
         return ret;
     }
 
@@ -2866,12 +2921,12 @@ static int vltl_sast_tree_convert_helper(
               dest, insert_below, &created, sast_operations_to_insert_below, current_operation
           );
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_convert!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_convert!");
         return ret;
     }
     ret = vltl_sast_operation_insert(dest, insert_below, created, insert_below_argc);
     if(ret != 0) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_insert!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_operation_insert!");
         return ret;
     }
 
@@ -2884,7 +2939,7 @@ static int vltl_sast_tree_convert_helper(
     for(size_t i = ast_operations_to_visit_helper - 1; true; i--) {
         ret = vstack_push(ast_operations_to_visit, &(current_operation->arguments[i]));
         if(ret != 0) {
-            IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
             return ret;
         }
 
@@ -2897,9 +2952,9 @@ static int vltl_sast_tree_convert_helper(
 
 int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     if(tree == NULL) {
-        VLTL_RETURN(EINVAL, "tree is NULL!");
+        IESTACK_RETURN(EINVAL, "tree is NULL!");
     } else if(operation == NULL) {
-        VLTL_RETURN(EINVAL, "operation is NULL!");
+        IESTACK_RETURN(EINVAL, "operation is NULL!");
     }
 
     operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
@@ -2930,7 +2985,7 @@ int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *oper
     }
 
     if(first_unused_index >= VLTL_SAST_OPERATION_ARGUMENTS_MAX) {
-        VLTL_RETURN(EXFULL, "Too many children of left CSV!");
+        IESTACK_RETURN(EXFULL, "Too many children of left CSV!");
     }
 
     if(rchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
@@ -2958,33 +3013,9 @@ int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *oper
     return 0;
 }
 
-/*
-// TODO: Deduce that LEA should using LOAD operation itself based on type of lvalue
-int vltl_sast_tree_reshape_load_unpack(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
-    if(tree == NULL) {
-        VLTL_RETURN(EINVAL, "tree is NULL!");
-    } else if(operation == NULL) {
-        VLTL_RETURN(EINVAL, "operation is NULL!");
-    }
-
-    VLTL_SUPPOSE(
-        operation->kind == VLTL_SAST_OPERATION_KIND_LEA &&
-        operation->rchild && operation->rchild->kind == VLTL_SAST_OPERATION_KIND_LOAD &&
-        operation->rchild->rchild && operation->rchild->rchild->kind == VLTL_SAST_OPERATION_KIND_EVAL,
-        EINVAL,
-        "Address taken of not a load operation!"
-    );
-    
-    operation->rchild = operation->rchild->rchild;
-    operation->rchild->parent = operation;
-
-    return 0;
-}
-*/
-
 int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation *operation, size_t index) {
-    VLTL_SUPPOSE(tree, EINVAL, "tree is NULL!");
-    VLTL_SUPPOSE(operation, EINVAL, "operation is NULL!");
+    IESTACK_SUPPOSE(tree, EINVAL, "tree is NULL!");
+    IESTACK_SUPPOSE(operation, EINVAL, "operation is NULL!");
 
     Vltl_asm_operand destination_operand = { 0 };
     switch(index) {
@@ -3001,14 +3032,14 @@ int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation
         destination_operand = (Vltl_asm_operand) vltl_asm_operand_amd64_rcx;
         break;
     default:
-        VLTL_RETURN(ENOTRECOVERABLE, "Haven't implemented that many registers yet!");
+        IESTACK_RETURN(ENOTRECOVERABLE, "Haven't implemented that many registers yet!");
         break;
     }
 
     Vltl_sast_operation *load_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(load_operation, ENOMEM, "no memory for load_operation!");
+    IESTACK_SUPPOSE(load_operation, ENOMEM, "no memory for load_operation!");
     Vltl_sast_operation *destination_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
-    VLTL_SUPPOSE(destination_operation, ENOMEM, "no memory for destination_operation!");
+    IESTACK_SUPPOSE(destination_operation, ENOMEM, "no memory for destination_operation!");
     *load_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_LOAD,
         .lchild = destination_operation,
@@ -3020,32 +3051,32 @@ int vltl_sast_tree_reshape_call_helper(Vltl_sast_tree *tree, Vltl_sast_operation
         .arguments = { 0 },
         .evaluates_to = destination_operand
     };
-    VLTL_EXPECT(vltl_sast_operation_adopt(tree, load_operation, operation), "Unable to adopt argument to call!");
+    IESTACK_HANDLE(vltl_sast_operation_adopt(tree, load_operation, operation), "Unable to adopt argument to call!");
 
     return 0;
 }
 
 int vltl_sast_tree_reshape_call(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     if(tree == NULL) {
-        VLTL_RETURN(EINVAL, "tree being worked on is NULL!");
+        IESTACK_RETURN(EINVAL, "tree being worked on is NULL!");
     } else if(operation == NULL) {
-        VLTL_RETURN(EINVAL, "source operation is NULL");
+        IESTACK_RETURN(EINVAL, "source operation is NULL");
     } else if(operation->rchild == NULL || operation->rchild->lchild == NULL) {
-        VLTL_RETURN(EINVAL, "source operation has no argument");
+        IESTACK_RETURN(EINVAL, "source operation has no argument");
     }
 
     Vltl_sast_operation *const function_arguments = operation->rchild->lchild;
     switch(function_arguments->kind) {
     case VLTL_SAST_OPERATION_KIND_CSV:
         for(size_t i = 0; i < vltl_sast_operation_args_argc(*function_arguments); i++) {
-            VLTL_EXPECT(
+            IESTACK_HANDLE(
                 vltl_sast_tree_reshape_call_helper(tree, function_arguments->arguments[i], i),
                 "Failed to write assembly for moving argument to register"
             );
         }
         break;
     default:
-        VLTL_EXPECT(
+        IESTACK_HANDLE(
             vltl_sast_tree_reshape_call_helper(tree, function_arguments, 0),
             "Failed to write assembly for moving argument to register"
         );
@@ -3056,8 +3087,8 @@ int vltl_sast_tree_reshape_call(Vltl_sast_tree *tree, Vltl_sast_operation *opera
 }
 
 int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
-    VLTL_SUPPOSE(tree != NULL, EINVAL, "tree being worked on is NULL!");
-    VLTL_SUPPOSE(operation != NULL, EINVAL, "source operation is NULL!");
+    IESTACK_SUPPOSE(tree != NULL, EINVAL, "tree being worked on is NULL!");
+    IESTACK_SUPPOSE(operation != NULL, EINVAL, "source operation is NULL!");
 
     // adopting a register with a store operation makes no sense
     switch(operation->evaluates_to.kind) {
@@ -3104,12 +3135,12 @@ int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *opera
 
     Vltl_sast_operation *store_operation = varena_alloc(
             &vltl_global_allocator, sizeof(Vltl_sast_operation)
-            );
-    VLTL_SUPPOSE(store_operation, ENOMEM, "Allocation failed!");
+                                           );
+    IESTACK_SUPPOSE(store_operation, ENOMEM, "Allocation failed!");
     Vltl_sast_operation *store_operation_dest = varena_alloc(
             &vltl_global_allocator, sizeof(Vltl_sast_operation)
-            );
-    VLTL_SUPPOSE(store_operation_dest, ENOMEM, "Allocation failed!");
+        );
+    IESTACK_SUPPOSE(store_operation_dest, ENOMEM, "Allocation failed!");
 
     *store_operation = (Vltl_sast_operation) {
         .kind = VLTL_SAST_OPERATION_KIND_STORE,
@@ -3124,7 +3155,7 @@ int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *opera
         .parent = store_operation,
         .evaluates_to = vltl_asm_operand_tbd
     };
-    VLTL_EXPECT(
+    IESTACK_HANDLE(
         vltl_sast_operation_adopt(operation->belongs_to, store_operation, operation),
         "adoption failed!"
     );
@@ -3135,8 +3166,8 @@ int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *opera
 int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
     int ret = 0;
     if(tree == NULL || operation == NULL) {
-        IESTACK_RETURNF(
-            &vltl_global_errors, EINVAL,
+        IESTACK_RETURNF2(
+            vltl_global_errors, EINVAL,
             "Arguments are NULL : tree = %p, operation = %p!",
             (void *) tree, (void *) operation
         );
@@ -3145,21 +3176,21 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
     for(size_t i = 0; i < vltl_sast_operation_args_argc(*operation); i++) {
         ret = vltl_sast_tree_reshape_recurse(tree, operation->arguments[i]);
         if(ret) {
-            IESTACK_RETURN(
-                &vltl_global_errors, EINVAL, "Unexpected error calling vltl_sast_tree_reshape_recurse!"
+            IESTACK_RETURN2(
+                vltl_global_errors, EINVAL, "Unexpected error calling vltl_sast_tree_reshape_recurse!"
             );
         }
     }
 
     switch(operation->kind) {
     case VLTL_SAST_OPERATION_KIND_EVAL:
-        VLTL_EXPECT(vltl_sast_tree_reshape_eval(tree, operation), "Failed to reshape eval operation!");
+        IESTACK_HANDLE(vltl_sast_tree_reshape_eval(tree, operation), "Failed to reshape eval operation!");
         break;
     case VLTL_SAST_OPERATION_KIND_COMMA:
-        VLTL_EXPECT(vltl_sast_tree_reshape_comma(tree, operation), "Failed to reshape comma operation!");
+        IESTACK_HANDLE(vltl_sast_tree_reshape_comma(tree, operation), "Failed to reshape comma operation!");
         break;
     case VLTL_SAST_OPERATION_KIND_CALL:
-        VLTL_EXPECT(vltl_sast_tree_reshape_call(tree, operation), "Failed to reshape call operation!");
+        IESTACK_HANDLE(vltl_sast_tree_reshape_call(tree, operation), "Failed to reshape call operation!");
         break;
     default:
         break;
@@ -3170,9 +3201,9 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
 
 int vltl_sast_tree_reshape(Vltl_sast_tree *tree) {
     if(tree == NULL) {
-        IESTACK_RETURN(&vltl_global_errors, EINVAL, "tree is NULL!");
+        IESTACK_RETURN2(vltl_global_errors, EINVAL, "tree is NULL!");
     } else if(tree->root == NULL) {
-        IESTACK_RETURN(&vltl_global_errors, EINVAL, "root of tree is NULL!");
+        IESTACK_RETURN2(vltl_global_errors, EINVAL, "root of tree is NULL!");
     }
 
     return vltl_sast_tree_reshape_recurse(tree, tree->root);
@@ -3184,8 +3215,8 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     Vstack *sast_operations_to_insert_below = NULL;
     if(dest == NULL || src == NULL) {
         ret = EINVAL;
-        IESTACK_PUSHF(
-            &vltl_global_errors, ret,
+        IESTACK_PUSHF2(
+            vltl_global_errors, ret,
             "Arguments are NULL : dest = %p, src = %p!",
             (void *) dest, (void *) src
         );
@@ -3196,7 +3227,7 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     sast_operations_to_insert_below = vstack_create(sizeof(Vltl_sast_operation *), 999);
     ret = vstack_push(ast_operations_to_visit, &(src->root));
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
         goto vltl_sast_tree_convert_error;
     }
     while(vstack_len(ast_operations_to_visit) > 0) {
@@ -3204,8 +3235,8 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
                   dest, src, ast_operations_to_visit, sast_operations_to_insert_below
               );
         if(ret) {
-            IESTACK_PUSH(
-                &vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_convert_helper!"
+            IESTACK_PUSH2(
+                vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_convert_helper!"
             );
             goto vltl_sast_tree_convert_error;
         }
@@ -3214,14 +3245,14 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     // reshape
     ret = vltl_sast_tree_reshape(dest);
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_reshape!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_reshape!");
         goto vltl_sast_tree_convert_error;
     }
 
     // connect
     ret = vltl_sast_tree_connect(dest);
     if(ret) {
-        IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect!");
+        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect!");
         goto vltl_sast_tree_convert_error;
     }
 
@@ -3241,8 +3272,8 @@ int vltl_sast_tree_registers_mark(Vltl_sast_tree *tree, Vltl_sast_operation *ope
     ret = vltl_global_registers_clear();
     if(ret != 0) {
         ret = ENOTRECOVERABLE;
-        IESTACK_PUSH(
-            &vltl_global_errors, ret, "Unexpected failure when calling vltl_global_registers_clear!"
+        IESTACK_PUSH2(
+            vltl_global_errors, ret, "Unexpected failure when calling vltl_global_registers_clear!"
         );
         return ret;
     }
@@ -3272,14 +3303,14 @@ int vltl_sast_tree_registers_mark(Vltl_sast_tree *tree, Vltl_sast_operation *ope
                       &reserve_this, current_sibling->destination
                   );
             if(ret) {
-                IESTACK_PUSH(
-                    &vltl_global_errors, ret, "Unexpected failure when converting operand to register!"
+                IESTACK_PUSH2(
+                    vltl_global_errors, ret, "Unexpected failure when converting operand to register!"
                 );
                 return ret;
             }
             ret = vltl_global_registers_update(reserve_this, VLTL_GLOBAL_REGISTER_STATUS_INUSE);
             if(ret != 0) {
-                IESTACK_PUSH(&vltl_global_errors, ret, "Unexpected failure marking register as in-use!");
+                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure marking register as in-use!");
                 return ret;
             }
         }

@@ -38,7 +38,6 @@ typedef struct vltl_lang_function {
     const Vltl_lang_type_attribute *parameter_attributes[VLTL_LANG_FUNCTION_PARAMETERS_CAP][VLTL_LANG_FUNCTION_PARAMETERS_ATTRIBUTES_CAP];
 
     // used during second pass that considers function body
-    Nkht *locals;
     size_t stack_frame_size;
     size_t stack_frame_cap;
     size_t num_tmp_variables;

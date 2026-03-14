@@ -75,6 +75,7 @@ typedef enum vltl_ast_operation_kind {
     VLTL_AST_OPERATION_KIND_RETURN,
     VLTL_AST_OPERATION_KIND_GLOBAL,
     VLTL_AST_OPERATION_KIND_CONSTANT,
+    VLTL_AST_OPERATION_KIND_EXTERNAL,
     VLTL_AST_OPERATION_KIND_LOCAL,
     VLTL_AST_OPERATION_KIND_FUNCTION,
     VLTL_AST_OPERATION_KIND_IF,
@@ -97,13 +98,13 @@ typedef struct vltl_ast_operation {
             struct vltl_ast_operation *rchild;
         };
     };
-    // pointer to the node on the sast tree representing this operation with less abstraction
-    struct vltl_sast_operation *equivalent;
 
     // evaulates_to will be a type that has integral typing of VLTL_LANG_TYPE_INTEGRAL_TBD when unknown.
     // otherwise, it should be possible to replace this operation with the literal representing its known value!
     struct vltl_lang_token *evaluates_to;
     const Vltl_lang_type *result_type;
+
+    struct vltl_trace *traced_by;
 } Vltl_ast_operation;
 
 typedef struct vltl_ast_tree {

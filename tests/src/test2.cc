@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <math.h>
+
 namespace {
 extern "C" {
     long manylines_addsub_main(void);
@@ -34,6 +36,8 @@ extern "C" {
     long while_statement_main(void);
     long address_indirection_main(void);
     long index_into_main(void);
+    long external_function_main(void);
+    long write_chars_main(void);
     long tour_de_force_main(void);
 }
 
@@ -152,6 +156,15 @@ TEST(file, address_indirection) {
 TEST(file, index_into) {
     // TODO: Implement arrays so that weird memory undefined layout behavior is missing
     ASSERT_EQ(6, index_into_main());
+}
+
+TEST(file, external_function) {
+    ASSERT_EQ(1, external_function_main());
+}
+
+TEST(file, write_chars) {
+    // TODO: Implement strings so that this works normally
+    ASSERT_EQ(0, write_chars_main());
 }
 
 TEST(file, tour_de_force) {

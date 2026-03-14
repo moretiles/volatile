@@ -1,0 +1,13 @@
+external function malloc ( ) {
+external function free ( ) {
+
+function external_function_main ( ) {
+    local got_some_memory = 0
+    local some_memory = malloc(4 * 1024 * 1024)
+
+    if(some_memory) {
+        got_some_memory = 1
+    }
+    free(some_memory)
+    return got_some_memory
+}

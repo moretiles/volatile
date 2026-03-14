@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Wpedantic --std=gnu11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label
+CFLAGS=-Wall -Wextra -Wpedantic --std=gnu11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label -lm
 CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-unused-command-line-argument
 DEBUG=-g3 -ggdb -D__VLT_EXECUTION_DEBUG__=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
 OPTIMIZE=-O0
@@ -22,8 +22,11 @@ objs += obj/global.o
 objs += obj/lexer.o
 objs += obj/sast.o
 objs += obj/convert.o
+objs += obj/trace.o
+objs += obj/error.o
 objs += obj/ds.o
 objs += obj/siphash.o
+objs += obj/dye.o
 
 test_asm_files = 
 test_asm_files += tests/fullpass/manylines_addsub.bin.S
@@ -51,6 +54,8 @@ test_asm_files += tests/fullpass/else_statement.bin.S
 test_asm_files += tests/fullpass/while_statement.bin.S
 test_asm_files += tests/fullpass/address_indirection.bin.S
 test_asm_files += tests/fullpass/index_into.bin.S
+test_asm_files += tests/fullpass/external_function.bin.S
+test_asm_files += tests/fullpass/write_chars.bin.S
 test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################
@@ -106,8 +111,17 @@ obj/convert.o: src/convert.c header/convert.h
 obj/ds.o: src/ds/*.c header/ds/*.h
 	${CC} ${DEBUG} ${CFLAGS} src/ds/core.c -c -o obj/ds.o ${INCLUDE} ${LIBRARIES}
 
+obj/trace.o: src/trace.c header/trace.h
+	${CC} ${DEBUG} ${CFLAGS} src/trace.c -c -o obj/trace.o ${INCLUDE} ${LIBRARIES}
+
+obj/error.o: src/error.c header/error.h
+	${CC} ${DEBUG} ${CFLAGS} src/error.c -c -o obj/error.o ${INCLUDE} ${LIBRARIES}
+
 obj/siphash.o: src/siphash.c header/siphash.h
 	${CC} ${DEBUG} ${CFLAGS} src/siphash.c -c -o obj/siphash.o ${INCLUDE} ${LIBRARIES}
+
+obj/dye.o: src/dye.c header/dye.h
+	${CC} ${DEBUG} ${CFLAGS} src/dye.c -c -o obj/dye.o ${INCLUDE} ${LIBRARIES}
 
 ## tests and housekeeping
 .PHONY: test

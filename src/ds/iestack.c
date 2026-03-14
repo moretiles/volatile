@@ -4,9 +4,13 @@
 #include <assert.h>
 
 _Thread_local char iestack_buffer_for_formatting[IESTACK_ERROR_STRLEN];
+_Thread_local Iestack **iestack_global_errors;
+_Thread_local int iestack_last_error;
 
 int iestack_error_init(
-    Iestack_error *error, int error_code, const char *msg, const char *filename, size_t linenumber
+    Iestack_error *error,
+    int error_code, Iestack_error_kind error_kind, const char *msg,
+    const char *filename, size_t linenumber
 ) {
     if(error == NULL) {
         return EINVAL;
@@ -16,6 +20,7 @@ int iestack_error_init(
         0
     };
     error->error_code = error_code;
+    error->error_kind = error_kind;
     size_t msg_len = strlen(msg);
     if(msg_len > (IESTACK_ERROR_STRLEN - 1)) {
         msg_len = IESTACK_ERROR_STRLEN - 1;
@@ -38,6 +43,22 @@ void iestack_error_deinit(Iestack_error *error) {
     };
 
     return;
+}
+
+Iestack *iestack_create() {
+    Iestack *created_here = malloc(sizeof(Iestack));
+    if(created_here == NULL) {
+        return NULL;
+    }
+
+    int ret = iestack_init(created_here);
+    if(ret) {
+        free(created_here);
+        created_here = NULL;
+        return NULL;
+    }
+
+    return created_here;
 }
 
 int iestack_init(Iestack *stack) {
@@ -66,13 +87,22 @@ void iestack_deinit(Iestack *stack) {
     return;
 }
 
-int iestack_push(Iestack *stack, int error_code, const char *msg, const char *filename, size_t linenumber) {
+void iestack_destroy(Iestack *stack) {
+    iestack_deinit(stack);
+    free(stack);
+}
+
+int iestack_push(
+    Iestack *stack,
+    int error_code, Iestack_error_kind error_kind, const char *msg,
+    const char *filename, size_t linenumber
+) {
     Iestack_error current_error = { 0 };
     if(stack == NULL || msg == NULL || filename == NULL) {
         return EINVAL;
     }
 
-    int ret = iestack_error_init(&current_error, error_code, msg, filename, linenumber);
+    int ret = iestack_error_init(&current_error, error_code, error_kind, msg, filename, linenumber);
     if(ret) {
         return ret;
     }
@@ -85,6 +115,7 @@ int iestack_push_direct(Iestack *stack, Iestack_error *src_error) {
         return EINVAL;
     }
 
+    iestack_last_error = src_error->error_code;
     return vstack_push(stack->error_stack, src_error);
 }
 
@@ -100,6 +131,10 @@ int iestack_dump(Iestack *stack, FILE *dest) {
     Iestack_error current_error = { 0 };
     if(stack == NULL || dest == NULL) {
         return EINVAL;
+    }
+
+    if(vstack_len(stack->error_stack) == 0) {
+        return 0;
     }
 
     int ret = 0;
@@ -121,6 +156,16 @@ int iestack_dump(Iestack *stack, FILE *dest) {
         fprintf(dest, "        error_code: %s (%i)\n",
                 strerror(current_error.error_code), current_error.error_code
                );
+        switch(current_error.error_kind) {
+        case IESTACK_ERROR_KIND_FUNCTION:
+            fprintf(dest, "        error_kind: FUNCTION\n");
+            break;
+        case IESTACK_ERROR_KIND_GOTO:
+            fprintf(dest, "        error_kind: GOTO\n");
+            break;
+        default:
+            break;
+        }
         fprintf(dest, "        msg: %s\n", current_error.msg);
         fprintf(dest, "        filename: %s\n", current_error.filename);
         fprintf(dest, "        linenumber: %lu\n", current_error.linenumber);

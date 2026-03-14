@@ -10,6 +10,7 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_UNSET,
     VLTL_LANG_OPERATION_KIND_INVALID,
 
+    VLTL_LANG_OPERATION_KIND_COMMENT,
     VLTL_LANG_OPERATION_KIND_EQUALS,
     VLTL_LANG_OPERATION_KIND_ADDRESS,
     VLTL_LANG_OPERATION_KIND_INDIRECTION,
@@ -26,6 +27,7 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_INDEX_CLOSE,
     VLTL_LANG_OPERATION_KIND_GLOBAL,
     VLTL_LANG_OPERATION_KIND_CONSTANT,
+    VLTL_LANG_OPERATION_KIND_EXTERNAL,
     VLTL_LANG_OPERATION_KIND_LOCAL,
     VLTL_LANG_OPERATION_KIND_FUNCTION,
     VLTL_LANG_OPERATION_KIND_IF,
@@ -45,6 +47,7 @@ typedef struct vltl_lang_operation {
     const struct vltl_lang_type *accepted_fields[9];
 } Vltl_lang_operation;
 
+extern struct vltl_lang_operation vltl_lang_operation_comment;
 extern struct vltl_lang_operation vltl_lang_operation_equals;
 extern struct vltl_lang_operation vltl_lang_operation_address;
 extern struct vltl_lang_operation vltl_lang_operation_indirection;
@@ -61,6 +64,7 @@ extern struct vltl_lang_operation vltl_lang_operation_index_open;
 extern struct vltl_lang_operation vltl_lang_operation_index_close;
 extern struct vltl_lang_operation vltl_lang_operation_global;
 extern struct vltl_lang_operation vltl_lang_operation_constant;
+extern struct vltl_lang_operation vltl_lang_operation_external;
 extern struct vltl_lang_operation vltl_lang_operation_local;
 extern struct vltl_lang_operation vltl_lang_operation_function;
 extern struct vltl_lang_operation vltl_lang_operation_if;
