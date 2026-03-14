@@ -256,7 +256,19 @@ __attribute__((constructor)) int vltl_global_init(void) {
     return 0;
 }
 
+__attribute__((destructor)) int vltl_global_deinit(void) {
+    vltl_global_table_deinit();
+    vltl_global_errors_deinit();
+    vltl_global_allocator_deinit();
+    vltl_global_registers_deinit();
+    vltl_global_context_deinit();
+    vltl_global_config_deinit();
+
+    return 0;
+}
+
 int vltl_global_config_init(void) {
+    vltl_global_config_deinit();
     vltl_global_config = (Vltl_global_config) {
         .isa = VLTL_ISA_AMD64,
         .pic_enabled = true
@@ -265,10 +277,16 @@ int vltl_global_config_init(void) {
     return 0;
 }
 
-int vltl_global_context_init(void) {
-    // vltl_global_context is zero-initialized so this is safe for the first and all subsequent invocations
-    vltl_lang_function_deinit(vltl_global_context.function);
+int vltl_global_config_deinit(void) {
+    vltl_global_config = (Vltl_global_config) {
+        0
+    };
 
+    return 0;
+}
+
+int vltl_global_context_init(void) {
+    vltl_global_context_deinit();
     vltl_global_context = (Vltl_global_context) {
         .filename = "test.vltl",
         .function = NULL,
@@ -278,8 +296,17 @@ int vltl_global_context_init(void) {
     return 0;
 }
 
+int vltl_global_context_deinit(void) {
+    // vltl_global_context is zero-initialized so this is safe however many times it is called
+    vltl_lang_function_deinit(vltl_global_context.function);
+    vltl_global_context = (Vltl_global_context) {
+        0
+    };
+    return 0;
+}
+
 int vltl_global_registers_init(void) {
-    vltl_global_registers_reset();
+    vltl_global_registers_deinit();
 
     switch(vltl_global_config.isa) {
     case VLTL_ISA_AMD64:
@@ -293,11 +320,21 @@ int vltl_global_registers_init(void) {
     return 0;
 }
 
-int vltl_global_allocator_init(void) {
-    if(vltl_global_allocator != NULL) {
-        varena_destroy(&vltl_global_allocator);
-        vltl_global_allocator = NULL;
+int vltl_global_registers_deinit(void) {
+    switch(vltl_global_config.isa) {
+    case VLTL_ISA_AMD64:
+        return vltl_global_registers_deinit_amd64();
+        break;
+    default:
+        exit(EINVAL);
+        break;
     }
+
+    return 0;
+}
+
+int vltl_global_allocator_init(void) {
+    vltl_global_allocator_deinit();
 
     vltl_global_allocator = varena_create(5 * 1024 * 1024);
     if(vltl_global_allocator == NULL) {
@@ -312,14 +349,27 @@ int vltl_global_allocator_init(void) {
     return 0;
 }
 
-int vltl_global_errors_init(void) {
-    iestack_global_errors = &vltl_global_errors;
-    if(vltl_global_errors == NULL) {
-        iestack_destroy(vltl_global_errors);
-    }
+int vltl_global_allocator_deinit(void) {
+    varena_destroy(&vltl_global_allocator);
+    vltl_global_allocator = NULL;
 
+    return 0;
+}
+
+int vltl_global_errors_init(void) {
+    vltl_global_errors_deinit();
+
+    iestack_global_errors = &vltl_global_errors;
     vltl_global_errors = iestack_create();
     assert(vltl_global_errors != NULL);
+
+    return 0;
+}
+
+int vltl_global_errors_deinit(void) {
+    iestack_destroy(vltl_global_errors);
+    vltl_global_errors = NULL;
+    iestack_global_errors = NULL;
 
     return 0;
 }
@@ -336,11 +386,20 @@ int vltl_global_table_init(void) {
     return 0;
 }
 
+int vltl_global_table_deinit(void) {
+    vltl_global_table_constants_deinit();
+    vltl_global_table_globals_deinit();
+    vltl_global_table_locals_deinit();
+    vltl_global_table_types_deinit();
+    vltl_global_table_operations_deinit();
+    vltl_global_table_attributes_deinit();
+    vltl_global_table_functions_deinit();
+
+    return 0;
+}
+
 int vltl_global_table_constants_init(void) {
-    if(vltl_global_table_constants != NULL) {
-        nkht_destroy(vltl_global_table_constants);
-        vltl_global_table_constants = NULL;
-    }
+    vltl_global_table_constants_deinit();
 
     vltl_global_table_constants = nkht_create(sizeof(Vltl_lang_constant *));
     if(vltl_global_table_constants == NULL) {
@@ -350,11 +409,15 @@ int vltl_global_table_constants_init(void) {
     return 0;
 }
 
+int vltl_global_table_constants_deinit(void) {
+    nkht_destroy(vltl_global_table_constants);
+    vltl_global_table_constants = NULL;
+
+    return 0;
+}
+
 int vltl_global_table_globals_init(void) {
-    if(vltl_global_table_globals != NULL) {
-        nkht_destroy(vltl_global_table_globals);
-        vltl_global_table_globals = NULL;
-    }
+    vltl_global_table_globals_deinit();
 
     vltl_global_table_globals = nkht_create(sizeof(Vltl_lang_global *));
     if(vltl_global_table_globals == NULL) {
@@ -364,11 +427,15 @@ int vltl_global_table_globals_init(void) {
     return 0;
 }
 
+int vltl_global_table_globals_deinit(void) {
+    nkht_destroy(vltl_global_table_globals);
+    vltl_global_table_globals = NULL;
+
+    return 0;
+}
+
 int vltl_global_table_locals_init(void) {
-    if(vltl_global_table_locals != NULL) {
-        nkht_destroy(vltl_global_table_locals);
-        vltl_global_table_locals = NULL;
-    }
+    vltl_global_table_locals_deinit();
 
     vltl_global_table_locals = nkht_create(sizeof(Vltl_lang_local *));
     if(vltl_global_table_locals == NULL) {
@@ -378,13 +445,17 @@ int vltl_global_table_locals_init(void) {
     return 0;
 }
 
+int vltl_global_table_locals_deinit(void) {
+    nkht_destroy(vltl_global_table_locals);
+    vltl_global_table_locals = NULL;
+
+    return 0;
+}
+
 int vltl_global_table_types_init(void) {
     Vltl_lang_type *lang_type_ptr = NULL;
 
-    if(vltl_global_table_types != NULL) {
-        nkht_destroy(vltl_global_table_types);
-        vltl_global_table_types = NULL;
-    }
+    vltl_global_table_types_deinit();
 
     vltl_global_table_types = nkht_create(sizeof(Vltl_lang_type *));
     if(vltl_global_table_types == NULL) {
@@ -402,15 +473,19 @@ int vltl_global_table_types_init(void) {
     return 0;
 }
 
+int vltl_global_table_types_deinit(void) {
+    nkht_destroy(vltl_global_table_types);
+    vltl_global_table_types = NULL;
+
+    return 0;
+}
+
 void vltl_global_table_operations_init_helper(Vltl_lang_operation *operation) {
     assert(0 == nkht_set(vltl_global_table_operations, operation->name, &operation));
 }
 
 int vltl_global_table_operations_init(void) {
-    if(vltl_global_table_operations != NULL) {
-        nkht_destroy(vltl_global_table_operations);
-        vltl_global_table_operations = NULL;
-    }
+    vltl_global_table_operations_deinit();
 
     vltl_global_table_operations = nkht_create(sizeof(Vltl_lang_operation *));
     if(vltl_global_table_operations == NULL) {
@@ -433,6 +508,7 @@ int vltl_global_table_operations_init(void) {
     vltl_global_table_operations_init_helper(&vltl_lang_operation_index_close);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_global);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_constant);
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_external);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_local);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_function);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_if);
@@ -446,13 +522,17 @@ int vltl_global_table_operations_init(void) {
     return 0;
 }
 
+int vltl_global_table_operations_deinit(void) {
+    nkht_destroy(vltl_global_table_operations);
+    vltl_global_table_operations = NULL;
+
+    return 0;
+}
+
 int vltl_global_table_attributes_init(void) {
     Vltl_lang_type_attribute *current_attribute_ptr;
 
-    if(vltl_global_table_attributes != NULL) {
-        nkht_destroy(vltl_global_table_attributes);
-        vltl_global_table_attributes = NULL;
-    }
+    vltl_global_table_attributes_deinit();
 
     vltl_global_table_attributes = nkht_create(sizeof(Vltl_lang_type_attribute *));
     if(vltl_global_table_attributes == NULL) {
@@ -471,16 +551,27 @@ int vltl_global_table_attributes_init(void) {
     return 0;
 }
 
+int vltl_global_table_attributes_deinit(void) {
+    nkht_destroy(vltl_global_table_attributes);
+    vltl_global_table_attributes = NULL;
+
+    return 0;
+}
+
 int vltl_global_table_functions_init(void) {
-    if(vltl_global_table_functions != NULL) {
-        nkht_destroy(vltl_global_table_functions);
-        vltl_global_table_functions = NULL;
-    }
+    vltl_global_table_functions_deinit();
 
     vltl_global_table_functions = nkht_create(sizeof(Vltl_lang_function *));
     if(vltl_global_table_functions == NULL) {
         exit(ENOMEM);
     }
+
+    return 0;
+}
+
+int vltl_global_table_functions_deinit(void) {
+    nkht_destroy(vltl_global_table_functions);
+    vltl_global_table_functions = NULL;
 
     return 0;
 }
@@ -532,6 +623,11 @@ int vltl_global_registers_init_amd64(void) {
         return ENOTRECOVERABLE;
     }
 
+    return 0;
+}
+
+int vltl_global_registers_deinit_amd64(void) {
+    vltl_global_registers_reset();
     return 0;
 }
 

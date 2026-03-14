@@ -9,7 +9,10 @@
 #include <lang/core.c>
 #include <lexer.c>
 #include <sast.c>
+#include <trace.c>
+#include <error.c>
 #include <siphash.c>
+#include <dye.c>
 
 #include <ds/iestack.h>
 

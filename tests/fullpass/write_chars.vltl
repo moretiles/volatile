@@ -1,0 +1,7 @@
+function write_chars_main ( ) {
+    local i = '0'
+    local j = '\b111'
+    local k = '\x33'
+    
+    return 0
+}

@@ -41,6 +41,7 @@ typedef enum vltl_sast_operation_kind {
     VLTL_SAST_OPERATION_KIND_CSV,
     VLTL_SAST_OPERATION_KIND_GLOBAL,
     VLTL_SAST_OPERATION_KIND_CONSTANT,
+    VLTL_SAST_OPERATION_KIND_EXTERNAL,
     VLTL_SAST_OPERATION_KIND_LOCAL,
     VLTL_SAST_OPERATION_KIND_FUNCTION,
     VLTL_SAST_OPERATION_KIND_IF,
@@ -69,12 +70,13 @@ typedef struct vltl_sast_operation {
     struct vltl_sast_operation *before[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
     struct vltl_sast_operation *after[VLTL_SAST_OPERATION_ARGUMENTS_MAX];
     // pointer to the node on the ast tree representing this operation more abstractly
-    struct vltl_ast_operation *equivalent;
 
     // evaulates_to will be a type that has integral typing of VLTL_LANG_TYPE_INTEGRAL_TBD when unknown.
     // otherwise, it should be possible to replace this operation with the literal representing its known value!
     Vltl_asm_operand evaluates_to;
     Vltl_asm_operand destination;
+
+    struct vltl_trace *traced_by;
 } Vltl_sast_operation;
 
 typedef struct vltl_sast_tree {

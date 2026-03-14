@@ -7,6 +7,8 @@
 #include <ds/iestack.h>
 #include <global.h>
 #include <isa.h>
+#include <error.h>
+#include <trace.h>
 #include <lang/function.h>
 #include <lang/type.h>
 #include <sast.h>
@@ -79,7 +81,12 @@ int add_2(int *dest, int *src1, int *src2) {
 }
 
 int baz(void) {
-    IESTACK_RETURN2(vltl_global_errors, ENOTRECOVERABLE, "bad from baz");
+    IESTACK_SUPPOSE_CALLBACK(
+        false,
+        ENOTRECOVERABLE,
+        vltl_error("callback for bad from baz!"),
+        "bad from baz"
+    );
 }
 
 int bar(void) {
@@ -89,9 +96,12 @@ int bar(void) {
 }
 
 int foo(void) {
-    IESTACK_HANDLE_CALLBACK(bar(), puts("callback for bad from foo!"), "bad from foo!");
-
+    // will travel to foo_error
+    IESTACK_HANDLE_GOTO(bar(), foo_error, "bad from foo!");
     return 0;
+
+foo_error:
+    return iestack_last_error;
 }
 
 TEST(ds, ierror_simple) {
@@ -405,7 +415,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_eval1_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -421,7 +430,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_eval2_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -437,7 +445,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_eval3_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -453,7 +460,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_eval4_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -469,7 +475,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_eval5_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -479,7 +484,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_add_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -489,7 +493,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_mul_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -498,7 +501,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_mul_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -507,7 +509,6 @@ public:
         .belongs_to = nullptr,
         .parent = nullptr,
         .arguments = { nullptr },
-        .equivalent = nullptr,
         .evaluates_to = &ast_mul_operation_evaluates,
         .result_type = &vltl_lang_type_long
     };
@@ -918,55 +919,6 @@ TEST_F(OnelineFixture1, define_constant) {
     ASSERT_FALSE(nkht_get(vltl_global_table_constants, "running_out_of_variable_names", &check_if_exists));
     ASSERT_NE(nullptr, check_if_exists);
 }
-
-TEST_F(OnelineFixture1, define_function) {
-    char buf[9999];
-    size_t buf_len = 0;
-    const char *mathline = "function just_return_3 1 {\n"
-                           "    return 3\n"
-                           "}";
-    Vltl_lexer_line line = { 0 };
-    Vltl_ast_tree ast_tree = { 0 };
-    Vltl_sast_tree sast_tree = { 0 };
-    FILE *file = nullptr;
-
-    // lexer
-    ASSERT_EQ(0, vltl_lexer_line_convert(&line, mathline));
-
-    // ast tree
-    const char *ast_filename = "scratch/ast.dot";
-    file = fopen(ast_filename, "w");
-    ASSERT_EQ(0, vltl_ast_tree_convert(&ast_tree, &line));
-    vltl_ast_tree_detokenize(buf, 9999, &buf_len, ast_tree);
-    fputs(buf, file);
-    fflush(file);
-    fclose(file);
-    file = nullptr;
-
-    // sast tree
-    const char *sast_filename = "scratch/sast.dot";
-    file = fopen(sast_filename, "w");
-    ASSERT_EQ(0, vltl_sast_tree_convert(&sast_tree, &ast_tree));
-    vltl_sast_tree_detokenize(buf, 9999, &buf_len, sast_tree);
-    fputs(buf, file);
-    fflush(file);
-    fclose(file);
-    file = nullptr;
-
-    // compile
-    const char *asm_filename = "scratch/asm.S";
-    file = fopen(asm_filename, "w");
-    ASSERT_NE(nullptr, file);
-    fputs(".intel_syntax\n", file);
-    fputs("\n", file);
-    ASSERT_EQ(0, vltl_compile_convert(file, &sast_tree));
-    fflush(file);
-    fclose(file);
-
-    Vltl_lang_function *check_if_exists = nullptr;
-    ASSERT_FALSE(nkht_get(vltl_global_table_functions, "just_return_3", &check_if_exists));
-    ASSERT_NE(nullptr, check_if_exists);
-}
 }
 
 namespace {
@@ -1150,6 +1102,20 @@ TEST(fullpass, index_into_main) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/index_into.bin";
     char src_filename[] = "tests/fullpass/index_into.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, external_function) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/external_function.bin";
+    char src_filename[] = "tests/fullpass/external_function.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
+TEST(fullpass, write_chars) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/write_chars.bin";
+    char src_filename[] = "tests/fullpass/write_chars.vltl";
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 

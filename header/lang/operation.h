@@ -26,6 +26,7 @@ typedef enum vltl_lang_operation_kind {
     VLTL_LANG_OPERATION_KIND_INDEX_CLOSE,
     VLTL_LANG_OPERATION_KIND_GLOBAL,
     VLTL_LANG_OPERATION_KIND_CONSTANT,
+    VLTL_LANG_OPERATION_KIND_EXTERNAL,
     VLTL_LANG_OPERATION_KIND_LOCAL,
     VLTL_LANG_OPERATION_KIND_FUNCTION,
     VLTL_LANG_OPERATION_KIND_IF,
@@ -61,6 +62,7 @@ extern struct vltl_lang_operation vltl_lang_operation_index_open;
 extern struct vltl_lang_operation vltl_lang_operation_index_close;
 extern struct vltl_lang_operation vltl_lang_operation_global;
 extern struct vltl_lang_operation vltl_lang_operation_constant;
+extern struct vltl_lang_operation vltl_lang_operation_external;
 extern struct vltl_lang_operation vltl_lang_operation_local;
 extern struct vltl_lang_operation vltl_lang_operation_function;
 extern struct vltl_lang_operation vltl_lang_operation_if;

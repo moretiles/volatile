@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <errno.h>
 
+_Thread_local int btrc_strncpy_tmp;
+
 int btrc_strncpy(size_t *src_len, char *restrict dest, const char *restrict src, size_t n) {
     if(src_len == NULL || dest == NULL || src == NULL) {
         return EINVAL;

@@ -9,6 +9,7 @@
 #include <lang/token.h>
 #include <lang/type.h>
 #include <lexer.h>
+#include <trace.h>
 
 #include <string.h>
 #include <errno.h>
@@ -23,14 +24,14 @@ bool vltl_lexer_line_valid(const Vltl_lexer_line line) {
 
 int vltl_lexer_token_init(
     Vltl_lexer_token *dest,
-    const char *line,
+    size_t offset_into_line,
     Vltl_lang_token token
 ) {
     if(!vltl_lang_token_kind_valid(token.kind)) {
         return EINVAL;
     }
 
-    dest->line = line;
+    dest->offset_into_line = offset_into_line;
     dest->token = token;
 
     return 0;
@@ -99,15 +100,28 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
         if(ret) {
             return ret;
         }
-        dest->tokens[current_token_index].line = memory_for_this_token;
+
+        if(current_token_index == 0) {
+            dest->tokens[current_token_index].offset_into_line = offset_into_line_buffer - start_of_current_line;
+        } else {
+            dest->tokens[current_token_index].offset_into_line = 1 + offset_into_line_buffer - start_of_current_line;
+        }
 
         ret = vltl_lexer_token_tokenize(
-                  &(dest->tokens[current_token_index++]), memory_for_this_token, end_of_current_line - start_of_current_line, presumed_token_kind
+                  &(dest->tokens[current_token_index]), memory_for_this_token, end_of_current_line - start_of_current_line, presumed_token_kind
               );
         if(ret) {
             IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure!");
             return ret;
         }
+
+        dest->tokens[current_token_index].token.traced_by = varena_alloc(
+                &vltl_global_allocator, sizeof(Vltl_trace)
+            );
+        dest->tokens[current_token_index].token.traced_by->as_line = dest;
+        dest->tokens[current_token_index].token.traced_by->as_token = &(dest->tokens[current_token_index].token);
+
+        current_token_index++;
     }
 
     dest->token_count = current_token_index;
@@ -154,8 +168,6 @@ int vltl_lexer_token_chomp(
         case '7':
         case '8':
         case '9':
-        case '\'':
-        case '\"':
             *presumed_token_kind = VLTL_LANG_TOKEN_KIND_LITERAL;
             done = true;
             break;
@@ -215,6 +227,14 @@ int vltl_lexer_token_chomp(
             *presumed_token_kind = VLTL_LANG_TOKEN_KIND_UNKNOWN;
             done = true;
             break;
+        case '\'':
+            *presumed_token_kind = VLTL_LANG_TOKEN_KIND_CHAR;
+            done = true;
+            break;
+        case '"':
+            *presumed_token_kind = VLTL_LANG_TOKEN_KIND_STRING;
+            done = true;
+            break;
         default:
             *presumed_token_kind = VLTL_LANG_TOKEN_KIND_OPERATION;
             done = true;
@@ -227,10 +247,9 @@ int vltl_lexer_token_chomp(
     // find end of next token
     done = false;
     while(!done) {
+        // TODO: Reasses whether literal is useful name as char/string are not literal
         if(*presumed_token_kind == VLTL_LANG_TOKEN_KIND_LITERAL) {
             switch(line[end_of_token]) {
-            case '"':
-            case '\'':
             case '.':
                 // not supported yet
                 IESTACK_PUSH2(vltl_global_errors, EINVAL, "Unsupported literal!");
@@ -250,6 +269,44 @@ int vltl_lexer_token_chomp(
                 break;
             default:
                 done = true;
+                break;
+            }
+        } else if(*presumed_token_kind == VLTL_LANG_TOKEN_KIND_CHAR) {
+            if(start_of_token == end_of_token) {
+                IESTACK_SUPPOSE(line[start_of_token] == '\'', EINVAL, "Bad char value!");
+                end_of_token++;
+            }
+            IESTACK_SUPPOSE(line[end_of_token] != 0, EINVAL, "Bad null terminator in char!");
+
+            switch(line[end_of_token]) {
+            case '\'':
+                if(line[end_of_token - 1] != '\'') {
+                    done = true;
+                }
+                end_of_token++;
+                break;
+            default:
+                end_of_token++;
+                break;
+            }
+        } else if(*presumed_token_kind == VLTL_LANG_TOKEN_KIND_STRING) {
+            IESTACK_SUPPOSE(false, EINVAL, "bad!");
+
+            if(start_of_token == end_of_token) {
+                IESTACK_SUPPOSE(line[start_of_token] == '\"', EINVAL, "Bad string value!");
+                end_of_token++;
+            }
+            IESTACK_SUPPOSE(line[end_of_token] != 0, EINVAL, "Bad null terminator in string!");
+
+            switch(line[end_of_token]) {
+            case '\"':
+                if(line[end_of_token - 1] != '\"') {
+                    done = true;
+                }
+                end_of_token++;
+                break;
+            default:
+                end_of_token++;
                 break;
             }
         } else if(*presumed_token_kind == VLTL_LANG_TOKEN_KIND_OPERATION) {
@@ -407,6 +464,94 @@ int vltl_lexer_token_chomp(
     return 0;
 }
 
+int vltl_lexer_token_tokenize_binary(char *src, char *dest_char) {
+    char return_this = 0;
+    size_t pos = 0;
+
+    bool done = false;
+    while(!done && pos < 8) {
+        switch(src[pos]) {
+        case '0':
+        case '1':
+            return_this <<= 1;
+            return_this += (src[pos] - '0');
+            break;
+        case '\'':
+            done = true;
+            break;
+        default:
+            return EINVAL;
+            break;
+        }
+
+        pos++;
+    }
+
+    if(!done && src[pos] != '\'') {
+        return EINVAL;
+    }
+
+    *dest_char = return_this;
+    return 0;
+}
+
+int vltl_lexer_token_tokenize_hexadecimal(char *src, char *dest_char) {
+    char return_this = 0;
+    size_t pos = 0;
+
+    bool done = false;
+    while(!done && pos < 2) {
+        switch(src[pos]) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            return_this <<= 4;
+            return_this += (src[pos] - '0');
+            break;
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+            return_this <<= 4;
+            return_this += (src[pos] - 'a' + 10);
+            break;
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+            return_this <<= 4;
+            return_this += (src[pos] - 'A' + 10);
+            break;
+        case '\'':
+            done = true;
+            break;
+        default:
+            return EINVAL;
+            break;
+        }
+
+        pos++;
+    }
+
+    if(!done && src[pos] != '\'') {
+        return EINVAL;
+    }
+
+    *dest_char = return_this;
+    return 0;
+}
+
 int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t src_len, const Vltl_lang_token_kind token_kind) {
     const size_t tmp_cap = 999;
     char tmp[tmp_cap];
@@ -449,6 +594,83 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
             .type = &vltl_lang_type_long,
             .attributes = { 0 },
             .fields = { value }
+        };
+
+        return 0;
+    } else if(token_kind == VLTL_LANG_TOKEN_KIND_STRING) {
+        IESTACK_SUPPOSE(false, EINVAL, "Not accepting string!");
+
+        bool done = false;
+        size_t str_len = 0;
+        char *next_double_quote = strchr(tmp + 1, '"');
+        while(!done && next_double_quote != NULL) {
+            IESTACK_SUPPOSE(next_double_quote > tmp, EINVAL, "Bad string value!");
+
+            if(*(next_double_quote - 1) != '\\') {
+                done = true;
+            } else {
+                next_double_quote = strchr(tmp, '"');
+            }
+        }
+
+        IESTACK_SUPPOSE(next_double_quote != NULL, EINVAL, "Bad string value!");
+        str_len = next_double_quote - tmp - 1;
+        char *copy_of_string = varena_alloc(&vltl_global_allocator, str_len + 1);
+        if(str_len > 0) {
+            memcpy(copy_of_string, tmp + 1, str_len);
+        }
+        copy_of_string[str_len] = 0;
+        dest->token.kind = VLTL_LANG_TOKEN_KIND_STRING;
+        dest->token.literal = (Vltl_lang_literal) {
+            .name = tmp,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .fields = { copy_of_string }
+        };
+
+        return 0;
+    } else if(token_kind == VLTL_LANG_TOKEN_KIND_CHAR) {
+        // TODO: Support hex/binary chars
+
+        char char_value = 0;
+
+        IESTACK_SUPPOSE(tmp[0] == '\'', EINVAL, "Bad char!");
+        IESTACK_SUPPOSE(tmp[1] != 0, EINVAL, "Bad char!");
+        if(tmp[1] == '\\') {
+            switch(tmp[2]) {
+            case '\'':
+                char_value = '\\';
+                break;
+            case 't':
+                char_value = '\t';
+                break;
+            case 'n':
+                char_value = '\n';
+                break;
+            case 'r':
+                char_value = '\r';
+                break;
+            case 'x':
+                IESTACK_HANDLE(vltl_lexer_token_tokenize_hexadecimal(&(tmp[3]), &char_value), "Bad char!");
+                break;
+            case 'b':
+                IESTACK_HANDLE(vltl_lexer_token_tokenize_binary(&(tmp[3]), &char_value), "Bad char!");
+                break;
+            default:
+                IESTACK_RETURN(EINVAL, "Bad escaped char!");
+                break;
+            }
+        } else {
+            char_value = tmp[1];
+        }
+
+        uint64_t extra_conversion_to_avoid_warning = char_value;
+        dest->token.kind = VLTL_LANG_TOKEN_KIND_LITERAL;
+        dest->token.literal = (Vltl_lang_literal) {
+            .name = tmp,
+            .type = &vltl_lang_type_long,
+            .attributes = { 0 },
+            .fields = { (void *) extra_conversion_to_avoid_warning }
         };
 
         return 0;

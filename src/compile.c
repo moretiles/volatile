@@ -3,6 +3,8 @@
 #include <lang/body.h>
 #include <isa.h>
 #include <compile.h>
+#include <trace.h>
+#include <error.h>
 
 #include <errno.h>
 #include <string.h>
@@ -654,6 +656,29 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     }
 
     switch(src->root->kind) {
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
+        ;
+        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        if(created_function == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+
+        ret = vltl_lang_function_init(created_function, src->root->evaluates_to.as_unknown);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
+            return ret;
+        }
+
+        ret = nkht_set(vltl_global_table_functions, src->root->evaluates_to.as_unknown, &created_function);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+
+        return 0;
+        break;
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         // this is a psuedo-instruction
         ;
@@ -671,7 +696,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         );
         vltl_global_context.bodies[0].body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
 
-        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
         if(created_function == NULL) {
             ret = ENOMEM;
             IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
@@ -994,7 +1019,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     // ast tree
     ret = vltl_ast_tree_convert(&ast_tree, &line);
     // TODO: figure out better way to conditionally enable dumping of ast_tree to graphviz
-    if(true || ret) {
+    if(ret) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
         debug_file = fopen("scratch/ast_debug.dot", "w");
@@ -1009,7 +1034,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     // sast tree
     ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
     // TODO: figure out better way to conditionally enable dumping of sast_tree to graphviz
-    if(true || ret) {
+    if(ret) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
         debug_file = fopen("scratch/sast_debug.dot", "w");
@@ -1028,6 +1053,10 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     if(ret) {
         return ret;
     }
+
+    // debug
+    //IESTACK_PUSH(EINVAL, "arbitrary error or something!");
+    //vltl_error_sast(*(line.tokens[0].token.traced_by->as_sast));
 
     return ret;
 }
@@ -1071,6 +1100,11 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
     }
     Vltl_compile_line_trio_queue *global_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
     ret = vltl_compile_line_trio_queue_init(&global_lines, global_lines, 20);
+    if(ret) {
+        goto vltl_compile_file_error;
+    }
+    Vltl_compile_line_trio_queue *external_lines = varena_alloc(&vltl_global_allocator, vltl_compile_line_trio_queue_advise(20));
+    ret = vltl_compile_line_trio_queue_init(&external_lines, external_lines, 20);
     if(ret) {
         goto vltl_compile_file_error;
     }
@@ -1156,6 +1190,9 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
                 break;
             case VLTL_LANG_OPERATION_KIND_GLOBAL:
                 vltl_compile_line_trio_queue_enqueue(global_lines, &line_trio);
+                break;
+            case VLTL_LANG_OPERATION_KIND_EXTERNAL:
+                vltl_compile_line_trio_queue_enqueue(external_lines, &line_trio);
                 break;
             case VLTL_LANG_OPERATION_KIND_FUNCTION:
                 vltl_compile_line_trio_queue_enqueue(function_lines, &line_trio);
@@ -1248,6 +1285,26 @@ int vltl_compile_file(char *dest_filename, char *src_filename) {
             }
 
             ret = vltl_compile_line_trio_queue_dequeue(global_lines, &line_trio);
+        }
+
+        if(ret == ENODATA) {
+            // done
+        } else {
+            goto vltl_compile_file_error;
+        }
+    }
+
+    {
+        ret = vltl_compile_line_trio_queue_dequeue(external_lines, &line_trio);
+        while(ret == 0) {
+            fseek(src_file, line_trio.offset, SEEK_SET);
+            fgets(current_line, current_line_cap, src_file);
+            ret = vltl_compile_line(assembly_file, current_line, line_trio.line_number);
+            if(ret) {
+                goto vltl_compile_file_error;
+            }
+
+            ret = vltl_compile_line_trio_queue_dequeue(external_lines, &line_trio);
         }
 
         if(ret == ENODATA) {

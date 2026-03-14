@@ -2,6 +2,7 @@
 #include <ds/iestack.h>
 #include <global.h>
 #include <ast.h>
+#include <trace.h>
 
 #include <errno.h>
 #include <string.h>
@@ -165,6 +166,9 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_ELIF:
     case VLTL_AST_OPERATION_KIND_ELSE:
     case VLTL_AST_OPERATION_KIND_WHILE:
+        determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_18;
+        break;
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
         determined_precedence = VLTL_AST_OPERATION_PRECEDENCE_19;
         break;
     default:
@@ -258,6 +262,9 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
         src_string = "constant";
+        break;
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
+        src_string = "external";
         break;
     case VLTL_AST_OPERATION_KIND_EVAL:
         src_string = "eval";
@@ -484,6 +491,7 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_GLOBAL:
     case VLTL_AST_OPERATION_KIND_CONSTANT:
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
     case VLTL_AST_OPERATION_KIND_RETURN:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
     case VLTL_AST_OPERATION_KIND_IF:
@@ -569,6 +577,9 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
+        return 1;
+        break;
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
@@ -793,6 +804,7 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
             pushed->kind == VLTL_AST_OPERATION_KIND_GROUPING_CLOSE
         ) {
             Vltl_ast_operation *empty_csv_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_ast_operation));
+            Vltl_trace *empty_traced_by = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_trace));
             if(!empty_csv_operation) {
                 return ENOMEM;
             }
@@ -803,6 +815,10 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
                 vltl_ast_operation_init(empty_csv_operation, operation_kind, NULL, result_type),
                 "Unable to initalize empty CSV operation"
             );
+            empty_csv_operation->traced_by = empty_traced_by;
+            empty_csv_operation->traced_by->as_line = tree->last->traced_by->as_line;
+            empty_csv_operation->traced_by->as_token = tree->last->traced_by->as_token;
+            empty_csv_operation->traced_by->as_ast = tree->last->traced_by->as_ast;
             IESTACK_HANDLE(
                 vltl_ast_operation_insert(
                     tree, tree->last, empty_csv_operation,
@@ -1018,7 +1034,7 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 return ENOMEM;
             }
 
-            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_LITERAL;
+            evaluates_to->kind = src->tokens[i].token.kind;
             evaluates_to->literal = src->tokens[i].token.literal;
             result_type = &vltl_lang_type_long;
             ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
@@ -1036,6 +1052,15 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                 break;
             case VLTL_LANG_OPERATION_KIND_CONSTANT:
                 operation_kind = VLTL_AST_OPERATION_KIND_CONSTANT;
+
+                result_type = &vltl_lang_type_long;
+                ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                if(ret) {
+                    return ret;
+                }
+                break;
+            case VLTL_LANG_OPERATION_KIND_EXTERNAL:
+                operation_kind = VLTL_AST_OPERATION_KIND_EXTERNAL;
 
                 result_type = &vltl_lang_type_long;
                 ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
@@ -1270,6 +1295,8 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             break;
         }
 
+        push_this->traced_by = src->tokens[i].token.traced_by;
+        push_this->traced_by->as_ast = push_this;
         ret = vltl_ast_tree_insert(dest, push_this);
         if(ret != 0) {
             IESTACK_PUSH2(vltl_global_errors, ret, "Unable to insert node into tree!");

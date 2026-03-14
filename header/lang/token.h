@@ -22,6 +22,8 @@ typedef enum vltl_lang_token_kind {
     VLTL_LANG_TOKEN_KIND_LITERAL,
     VLTL_LANG_TOKEN_KIND_CONSTANT,
     VLTL_LANG_TOKEN_KIND_GLOBAL,
+    VLTL_LANG_TOKEN_KIND_CHAR,
+    VLTL_LANG_TOKEN_KIND_STRING,
     VLTL_LANG_TOKEN_KIND_LOCAL,
     VLTL_LANG_TOKEN_KIND_FUNCTION,
     VLTL_LANG_TOKEN_KIND_ATTRIBUTE,
@@ -42,6 +44,7 @@ typedef struct vltl_lang_token {
         Vltl_lang_local *local;
         Vltl_lang_function *function;
     };
+    struct vltl_trace *traced_by;
 } Vltl_lang_token;
 
 bool vltl_lang_token_kind_valid(const Vltl_lang_token_kind kind);

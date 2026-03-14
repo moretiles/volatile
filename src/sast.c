@@ -1,6 +1,7 @@
 #include <ds/iestack.h>
 #include <sast.h>
 #include <convert.h>
+#include <trace.h>
 
 #include <string.h>
 #include <errno.h>
@@ -44,6 +45,7 @@ bool vltl_sast_operation_kind_valid(const Vltl_sast_operation_kind operation_kin
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
     case VLTL_SAST_OPERATION_KIND_IF:
     case VLTL_SAST_OPERATION_KIND_ELIF:
@@ -210,6 +212,7 @@ size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation) {
     case VLTL_SAST_OPERATION_KIND_GLOBAL:
     case VLTL_SAST_OPERATION_KIND_CONSTANT:
     case VLTL_SAST_OPERATION_KIND_LOCAL:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_RETURN:
     case VLTL_SAST_OPERATION_KIND_ADDRESS:
     case VLTL_SAST_OPERATION_KIND_INDIRECTION:
@@ -485,6 +488,9 @@ int vltl_sast_operation_kind_detokenize(
         break;
     case VLTL_SAST_OPERATION_KIND_LOCAL:
         src_string = "LOCAL";
+        break;
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
+        src_string = "EXTERNAL";
         break;
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         src_string = "FUNCTION";
@@ -1330,6 +1336,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_STORE:
         connect_me->destination = connect_me->arguments[0]->evaluates_to;
         break;
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         connect_me->evaluates_to = connect_me->arguments[0]->evaluates_to;
         break;
@@ -1418,6 +1425,7 @@ int vltl_sast_tree_connect_recurse(Vltl_sast_operation *connect_me, bool *inuse_
     case VLTL_SAST_OPERATION_KIND_TYPEAS:
     case VLTL_SAST_OPERATION_KIND_CSV:
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
+    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_LOAD:
@@ -2357,6 +2365,33 @@ int vltl_sast_operation_convert_amd64_function(
     return 0;
 }
 
+int vltl_sast_operation_convert_amd64_external(
+    Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
+    Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
+) {
+    Vltl_sast_operation *external_operation = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_sast_operation));
+    if(external_operation == NULL) {
+        return ENOMEM;
+    }
+
+    (void) src;
+    *external_operation = (Vltl_sast_operation) {
+        .kind = VLTL_SAST_OPERATION_KIND_EXTERNAL,
+        .belongs_to = on_this,
+        .parent = NULL,
+    };
+
+    *equivalent = external_operation;
+
+    // don't use information about tree or future parent
+    (void) on_this;
+    (void) future_parent;
+
+    // push once for child
+    vstack_push(insert_below_next, &external_operation);
+    return 0;
+}
+
 int vltl_sast_operation_convert_amd64_body_open(
     Vltl_sast_tree *on_this, Vltl_sast_operation *future_parent,
     Vltl_sast_operation **equivalent, Vstack *insert_below_next, Vltl_ast_operation *src
@@ -2682,100 +2717,115 @@ int vltl_sast_operation_convert_amd64(
 ) {
     switch(src->kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
-        return vltl_sast_operation_convert_amd64_eval(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_eval(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
-        return vltl_sast_operation_convert_amd64_grouping_open(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_grouping_open(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
-        return vltl_sast_operation_convert_amd64_grouping_close(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_grouping_close(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
-        return vltl_sast_operation_convert_amd64_index_open(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_index_open(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
-        return vltl_sast_operation_convert_amd64_index_close(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_index_close(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_CALL:
-        return vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_call(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ADDRESS:
-        return vltl_sast_operation_convert_amd64_address(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_address(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_INDIRECTION:
-        return vltl_sast_operation_convert_amd64_indirection(
-                   on_this, future_parent, equivalent, insert_below_next, src
-               );
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_indirection(
+                           on_this, future_parent, equivalent, insert_below_next, src
+                       ),
+                       "It failed!"
+                      );
         break;
     case VLTL_AST_OPERATION_KIND_ADD:
-        return vltl_sast_operation_convert_amd64_add(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_add(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_SUB:
-        return vltl_sast_operation_convert_amd64_sub(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_sub(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_MUL:
-        return vltl_sast_operation_convert_amd64_mul(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_mul(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_DIV:
-        return vltl_sast_operation_convert_amd64_div(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_div(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_TEST_EQUALS:
-        return vltl_sast_operation_convert_amd64_test_equals(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_test_equals(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_COMMA:
-        return vltl_sast_operation_convert_amd64_comma(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_comma(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_CSV:
-        return vltl_sast_operation_convert_amd64_csv(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_csv(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_TYPEAS:
-        return vltl_sast_operation_convert_amd64_typeas(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_typeas(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_EQUALS:
-        return vltl_sast_operation_convert_amd64_store(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_store(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
-        return vltl_sast_operation_convert_amd64_global(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_global(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_CONSTANT:
-        return vltl_sast_operation_convert_amd64_constant(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_constant(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_LOCAL:
-        return vltl_sast_operation_convert_amd64_local(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_local(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
+        break;
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_external(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
-        return vltl_sast_operation_convert_amd64_function(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_function(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_IF:
-        return vltl_sast_operation_convert_amd64_if(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_if(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ELIF:
-        return vltl_sast_operation_convert_amd64_elif(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_elif(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_ELSE:
-        return vltl_sast_operation_convert_amd64_else(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_else(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_WHILE:
-        return vltl_sast_operation_convert_amd64_while(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_while(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
-        return vltl_sast_operation_convert_amd64_body_open(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_body_open(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
-        return vltl_sast_operation_convert_amd64_body_close(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_body_close(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     case VLTL_AST_OPERATION_KIND_RETURN:
-        return vltl_sast_operation_convert_amd64_return(on_this, future_parent, equivalent, insert_below_next, src);
+        IESTACK_HANDLE(vltl_sast_operation_convert_amd64_return(on_this, future_parent, equivalent, insert_below_next, src), "it failed!");
         break;
     default:
         // not implemented yet
@@ -2783,6 +2833,11 @@ int vltl_sast_operation_convert_amd64(
         break;
     }
 
+    (*equivalent)->traced_by = src->traced_by;
+    if(src->traced_by == NULL) {
+        printf("bad!");
+    }
+    (*equivalent)->traced_by->as_sast = *equivalent;
     return 0;
 }
 

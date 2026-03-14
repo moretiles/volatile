@@ -38,7 +38,9 @@ typedef enum vltl_global_context_within {
     VLTL_GLOBAL_CONTEXT_WITHIN_GLOBAL,
     VLTL_GLOBAL_CONTEXT_WITHIN_STRUCT,
     VLTL_GLOBAL_CONTEXT_WITHIN_FUNCTION,
-    VLTL_GLOBAL_CONTEXT_WITHIN_LOCAL
+    VLTL_GLOBAL_CONTEXT_WITHIN_LOCAL,
+    VLTL_GLOBAL_CONTEXT_WITHIN_CHAR,
+    VLTL_GLOBAL_CONTEXT_WITHIN_STRING
 } Vltl_global_context_within;
 
 typedef struct vltl_global_context {
@@ -116,34 +118,49 @@ typedef struct vltl_global_registers {
 } Vltl_global_registers;
 
 __attribute__((constructor)) int vltl_global_init(void);
+__attribute__((destructor)) int vltl_global_deinit(void);
 
 // initialize config singleton
 int vltl_global_config_init(void);
+int vltl_global_config_deinit(void);
 
 // initialize context singleton
 int vltl_global_context_init(void);
+int vltl_global_context_deinit(void);
 
 // initialize registers singleton
 int vltl_global_registers_init(void);
+int vltl_global_registers_deinit(void);
 
 // initialize the global allocator
 int vltl_global_allocator_init(void);
+int vltl_global_allocator_deinit(void);
 
 // initialize the global errors stack
 int vltl_global_errors_init(void);
+int vltl_global_errors_deinit(void);
 
 // initialize the global tables
 int vltl_global_table_init(void);
+int vltl_global_table_deinit(void);
 int vltl_global_table_constants_init(void);
+int vltl_global_table_constants_deinit(void);
 int vltl_global_table_globals_init(void);
+int vltl_global_table_globals_deinit(void);
 int vltl_global_table_locals_init(void);
+int vltl_global_table_locals_deinit(void);
 int vltl_global_table_types_init(void);
+int vltl_global_table_types_deinit(void);
 int vltl_global_table_operations_init(void);
+int vltl_global_table_operations_deinit(void);
 int vltl_global_table_attributes_init(void);
+int vltl_global_table_attributes_deinit(void);
 int vltl_global_table_functions_init(void);
+int vltl_global_table_functions_deinit(void);
 
 // initialize when isa is AMD64
 int vltl_global_registers_init_amd64(void);
+int vltl_global_registers_deinit_amd64(void);
 
 // remove all registers from the global registers singleton
 int vltl_global_registers_reset(void);

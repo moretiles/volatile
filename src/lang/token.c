@@ -71,6 +71,8 @@ bool vltl_lang_token_kind_valid(const Vltl_lang_token_kind kind) {
     case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
     case VLTL_LANG_TOKEN_KIND_OPERATION:
     case VLTL_LANG_TOKEN_KIND_TYPE:
+    case VLTL_LANG_TOKEN_KIND_STRING:
+    case VLTL_LANG_TOKEN_KIND_CHAR:
         break;
     default:
         return false;

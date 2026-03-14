@@ -14,7 +14,7 @@ extern "C" {
 #define VLTL_LEXER_LINE_TOKENS_MAX (99LU)
 
 typedef struct vltl_lexer_token {
-    const char *line;
+    size_t offset_into_line;
     Vltl_lang_token token;
 } Vltl_lexer_token;
 
@@ -27,12 +27,14 @@ typedef struct vltl_lexer_line {
 
     Vltl_lexer_token tokens[VLTL_LEXER_LINE_TOKENS_MAX];
     size_t token_count;
+
+    struct vltl_trace *traced_by;
 } Vltl_lexer_line;
 
 bool vltl_lexer_line_valid(const Vltl_lexer_line line);
 int vltl_lexer_token_init(
     Vltl_lexer_token *dest,
-    const char *line,
+    size_t offset_into_line,
     Vltl_lang_token token
 );
 int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src);
