@@ -470,6 +470,8 @@ int vltl_global_table_types_init(void) {
     assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
     lang_type_ptr = &vltl_lang_type_char;
     assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
+    lang_type_ptr = &vltl_lang_type_nullstr;
+    assert(0 == nkht_set(vltl_global_table_types, lang_type_ptr->name, &lang_type_ptr));
     return 0;
 }
 
@@ -492,6 +494,7 @@ int vltl_global_table_operations_init(void) {
         exit(ENOMEM);
     }
 
+    vltl_global_table_operations_init_helper(&vltl_lang_operation_comment);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_equals);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_address);
     vltl_global_table_operations_init_helper(&vltl_lang_operation_indirection);

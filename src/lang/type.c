@@ -36,3 +36,7 @@ Vltl_lang_type vltl_lang_type_short = {
 Vltl_lang_type vltl_lang_type_char = {
     .name = "char", .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR8, .accepted_fields = { 0 }
 };
+
+Vltl_lang_type vltl_lang_type_nullstr = {
+    .name = "nullstr", .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_POINTER8, .accepted_fields = { 0 }
+};

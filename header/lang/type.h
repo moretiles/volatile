@@ -1,24 +1,25 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/*
 // assumptions:
 // kind for type changes rarely as it represents what a type actually is
 // size changes somewhat as different math occurs.
 // instance changes heavily as going from pointer to indirection back to pointer to indirection happens often.
-
-/*
 typedef enum vltl_lang_type_integral_kind {
     VLTL_LANG_TYPE_INTEGRAL_KIND_SIGNED,
     VLTL_LANG_TYPE_INTEGRAL_KIND_UNSIGNED,
     //VLTL_LANG_TYPE_INTEGRAL_KIND_FLOAT,
     //VLTL_LANG_TYPE_INTEGRAL_KIND_SATOMIC,
     //VLTL_LANG_TYPE_INTEGRAL_KIND_UATOMIC,
-    VLTL_LANG_TYPE_INTEGRAL_SIZE_USERDEFINED
+    VLTL_LANG_TYPE_INTEGRAL_KIND_USERDEFINED
 } Vltl_lang_type_integral_kind;
 
 typedef enum vltl_lang_type_integral_size {
@@ -29,24 +30,21 @@ typedef enum vltl_lang_type_integral_size {
     VLTL_LANG_TYPE_INTEGRAL_SIZE_USERDEFINED
 } Vltl_lang_type_integral_size;
 
+// VLTL_LANG_TYPE_INTEGRAL_KIND_SCALAR used only for literals and constants
+// VLTL_LANG_TYPE_INTEGRAL_KIND_ARRAY is special kind of scalar value because arrays are weird =_=
+// VLTL_LANG_TYPE_INTEGRAL_KIND_POINTER is used when a pointer has been stored or address-of operator used
+// VLTL_LANG_TYPE_INTEGRAL_KIND_INDIRECTION used when getting the value of some variable as part of an expression, dereferencing a pointer, or indexing into an array
 typedef enum vltl_lang_type_integral_instance {
-    // used only for literals and constants
     VLTL_LANG_TYPE_INTEGRAL_KIND_SCALAR,
-
-    // special kind of scalar value because arrays are weird =_=
-    VLTL_LANG_TYPE_INTEGRAL_KIND_ARRAY
-
-    // used when a pointer has been stored or address-of operator used
+    VLTL_LANG_TYPE_INTEGRAL_KIND_ARRAY,
     VLTL_LANG_TYPE_INTEGRAL_KIND_POINTER,
-
-    // used when getting the value of some variable as part of an expression, dereferencing a pointer, or indexing into an array
-    VLTL_LANG_TYPE_INTEGRAL_KIND_INDIRECTION,
+    VLTL_LANG_TYPE_INTEGRAL_KIND_INDIRECTION
 } Vltl_lang_type_integral_instance;
 
 typedef struct vltl_lang_type_integral {
-    vltl_lang_type_integral_kind,
-    vltl_lang_type_integral_size,
-    vltl_lang_type_integral_instance
+    Vltl_lang_type_integral_kind kind;
+    Vltl_lang_type_integral_size size;
+    Vltl_lang_type_integral_instance instance;
 } Vltl_lang_type_integral;
 */
 
@@ -90,24 +88,24 @@ typedef enum vltl_lang_type_integral {
 } Vltl_lang_type_integral;
 
 /*
-typedef struct vltl_lang_type_kind {
-    VLTL_LANG_TYPE_IDENTIFIER_ALIAS, // alias for integral type (like i16, i16)
-    VLTL_LANG_TYPE_IDENTIFIER_USERDEFINED, // any user-defined type with its own fields
-    VLTL_LANG_TYPE_IDENTIFIER_EXTERN // any externally defined type
+// VLTL_LANG_TYPE_IDENTIFIER_ALIAS is alias for integral type (like i16, i16)
+// VLTL_LANG_TYPE_IDENTIFIER_USERDEFINED used for any user-defined type with its own fields
+// VLTL_LANG_TYPE_IDENTIFIER_EXTERN use for any externally defined type
+typedef enum vltl_lang_type_kind {
+    VLTL_LANG_TYPE_IDENTIFIER_ALIAS,
+    VLTL_LANG_TYPE_IDENTIFIER_USERDEFINED,
+    VLTL_LANG_TYPE_IDENTIFIER_EXTERN
 } Vltl_lang_type_kind;
 
+// VLTL_LANG_TYPE_INTEGRAL_KIND_SCALAR is used only for literals and constants
+// VLTL_LANG_TYPE_INTEGRAL_KIND_ARRAY used for special kind of scalar value because arrays are weird =_=
+// VLTL_LANG_TYPE_INTEGRAL_KIND_POINTER used when a pointer has been stored or address-of operator used
+// VLTL_LANG_TYPE_INTEGRAL_KIND_INDIRECTION used when getting the value of some variable as part of an expression, dereferencing a pointer, or indexing into an array
 typedef enum vltl_lang_type_instance {
-    // used only for literals and constants
-    VLTL_LANG_TYPE_INTEGRAL_KIND_SCALAR,
-
-    // special kind of scalar value because arrays are weird =_=
-    VLTL_LANG_TYPE_INTEGRAL_KIND_ARRAY
-
-    // used when a pointer has been stored or address-of operator used
-    VLTL_LANG_TYPE_INTEGRAL_KIND_POINTER,
-
-    // used when getting the value of some variable as part of an expression, dereferencing a pointer, or indexing into an array
-    VLTL_LANG_TYPE_INTEGRAL_KIND_INDIRECTION,
+    VLTL_LANG_TYPE_KIND_SCALAR,
+    VLTL_LANG_TYPE_KIND_ARRAY,
+    VLTL_LANG_TYPE_KIND_POINTER,
+    VLTL_LANG_TYPE_KIND_INDIRECTION
 } Vltl_lang_type_instance;
 
 typedef struct vltl_lang_type_intern {
@@ -117,11 +115,11 @@ typedef struct vltl_lang_type_intern {
     union {
         Vltl_lang_type_integral_size integral_size; // set for aliased types
         size_t total_size; // set for userdefined types
-    }
+    };
     union {
-        const Vltl_lang_type_intern *alias_of // set for aliased types
+        const struct vltl_lang_type_intern *alias_of; // set for aliased types
         const struct vltl_lang_type_intern *fields[8]; // set for userdefined types
-    }
+    };
 } Vltl_lang_type_intern;
 
 typedef enum vltl_lang_type_attribute {
@@ -144,7 +142,7 @@ typedef struct vltl_lang_type {
     uint16_t *(part_of[15]);
 
     // Indirection of 0 for scalar or dereferencing variable (without using indirection operator), -1 for pointer, -2 for pointer to pointer, 1 for dereferencing pointer (using indirection operator) or indexing into an array, 2 for indexing into an array while also indexing into an array.
-    int16_t indirection_level
+    int16_t indirection_level;
 } Vltl_lang_type;
 */
 
@@ -180,6 +178,8 @@ extern Vltl_lang_type vltl_lang_type_long;
 extern Vltl_lang_type vltl_lang_type_int;
 extern Vltl_lang_type vltl_lang_type_short;
 extern Vltl_lang_type vltl_lang_type_char;
+
+extern Vltl_lang_type vltl_lang_type_nullstr;
 
 #ifdef __cplusplus
 }

@@ -40,6 +40,8 @@ int vltl_lang_token_stringify(
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;
     case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
+        IESTACK_SUPPOSE(src.attribute != NULL, EINVAL, "No attribute!");
+        IESTACK_SUPPOSE(src.attribute->name != NULL, EINVAL, "No type interned!");
         BTRC_SNPRINTF(&ret, &dest_len_helper2, dest, dest_cap, "%s", (const char *) src.attribute->name);
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;
@@ -48,6 +50,8 @@ int vltl_lang_token_stringify(
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;
     case VLTL_LANG_TOKEN_KIND_TYPE:
+        IESTACK_SUPPOSE(src.type != NULL, EINVAL, "No type!");
+        IESTACK_SUPPOSE(src.type->name != NULL, EINVAL, "No type interned!");
         BTRC_SNPRINTF(&ret, &dest_len_helper2, dest, dest_cap, "%s", (const char *) src.type->name);
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;

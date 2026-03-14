@@ -973,6 +973,62 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             return ENOMEM;
         }
 
+        if(src->tokens[i].token.kind == VLTL_LANG_TOKEN_KIND_LITERAL) {
+            if(src->tokens[i].token.literal.type == &vltl_lang_type_nullstr) {
+                // add address of operator to take pointer of global
+                {
+                    operation_kind = VLTL_AST_OPERATION_KIND_ADDRESS;
+                    result_type = &vltl_lang_type_long;
+                    ret = vltl_ast_operation_init(push_this, operation_kind, NULL, result_type);
+                    if(ret) {
+                        return ret;
+                    }
+
+                    push_this->traced_by = src->tokens[i].token.traced_by;
+                    push_this->traced_by->as_ast = push_this;
+                    ret = vltl_ast_tree_insert(dest, push_this);
+                    if(ret != 0) {
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Unable to insert node into tree!");
+                        return ret;
+                    }
+
+                    push_this = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_ast_operation));
+                    if(!push_this) {
+                        return ENOMEM;
+                    }
+                }
+
+                // need to intern string as global because can't fit string in register
+                // also transform this string into global
+                {
+                    Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
+                    Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+                    if(created_global == NULL || created_literal == NULL) {
+                        ret = ENOMEM;
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+                        return ret;
+                    }
+                    *created_literal = src->tokens[i].token.literal;
+                    *created_global = (Vltl_lang_global) {
+                        .name = "my_interned_string",
+                        .type = &vltl_lang_type_nullstr,
+                        .attributes = { 0 },
+                        .literal = created_literal
+                    };
+
+                    ret = nkht_set(vltl_global_table_globals, "my_interned_string", &created_global);
+                    if(ret) {
+                        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+                        return ret;
+                    }
+
+                    src->tokens[i].token.kind = VLTL_LANG_TOKEN_KIND_GLOBAL;
+                    src->tokens[i].token.global = created_global;
+                }
+            }
+        }
+
+
         switch(src->tokens[i].token.kind) {
         case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
         case VLTL_LANG_TOKEN_KIND_TYPE:
@@ -1038,6 +1094,7 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
             evaluates_to->literal = src->tokens[i].token.literal;
             result_type = &vltl_lang_type_long;
             ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+
             break;
         case VLTL_LANG_TOKEN_KIND_OPERATION:
             switch(src->tokens[i].token.operation->operation_kind) {

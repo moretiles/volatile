@@ -1019,7 +1019,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     // ast tree
     ret = vltl_ast_tree_convert(&ast_tree, &line);
     // TODO: figure out better way to conditionally enable dumping of ast_tree to graphviz
-    if(ret) {
+    if(ret || true) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
         debug_file = fopen("scratch/ast_debug.dot", "w");
@@ -1034,7 +1034,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     // sast tree
     ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
     // TODO: figure out better way to conditionally enable dumping of sast_tree to graphviz
-    if(ret) {
+    if(ret || true) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
         debug_file = fopen("scratch/sast_debug.dot", "w");
@@ -1397,12 +1397,21 @@ vltl_compile_file_debug:
 
             fprintf(assembly_file, ".global %s\n", iterated_global_key);
             fprintf(assembly_file, ".type %s, gnu_unique_object\n", iterated_global_key);
+            if(iterated_global_val->literal->type == &vltl_lang_type_nullstr) {
+            fprintf(
+                assembly_file,
+                "%s: .asciz \"%s\"\n",
+                iterated_global_key,
+                (const char *) iterated_global_val->literal->fields[0]
+            );
+            } else {
             fprintf(
                 assembly_file,
                 "%s: .quad %ld\n",
                 iterated_global_key,
                 (int64_t) iterated_global_val->literal->fields[0]
             );
+            }
         }
     }
 

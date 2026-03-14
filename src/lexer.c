@@ -121,6 +121,16 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
         dest->tokens[current_token_index].token.traced_by->as_line = dest;
         dest->tokens[current_token_index].token.traced_by->as_token = &(dest->tokens[current_token_index].token);
 
+        // done if comment
+        if(
+            dest->tokens[current_token_index].token.kind == VLTL_LANG_TOKEN_KIND_OPERATION &&
+            dest->tokens[current_token_index].token.operation->operation_kind == VLTL_LANG_OPERATION_KIND_COMMENT
+        ) {
+            dest->tokens[current_token_index].token = (Vltl_lang_token) { 0 };
+            done = true;
+            continue;
+        }
+
         current_token_index++;
     }
 
@@ -290,8 +300,6 @@ int vltl_lexer_token_chomp(
                 break;
             }
         } else if(*presumed_token_kind == VLTL_LANG_TOKEN_KIND_STRING) {
-            IESTACK_SUPPOSE(false, EINVAL, "bad!");
-
             if(start_of_token == end_of_token) {
                 IESTACK_SUPPOSE(line[start_of_token] == '\"', EINVAL, "Bad string value!");
                 end_of_token++;
@@ -598,8 +606,6 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
 
         return 0;
     } else if(token_kind == VLTL_LANG_TOKEN_KIND_STRING) {
-        IESTACK_SUPPOSE(false, EINVAL, "Not accepting string!");
-
         bool done = false;
         size_t str_len = 0;
         char *next_double_quote = strchr(tmp + 1, '"');
@@ -620,18 +626,16 @@ int vltl_lexer_token_tokenize(Vltl_lexer_token *dest, const char *src, size_t sr
             memcpy(copy_of_string, tmp + 1, str_len);
         }
         copy_of_string[str_len] = 0;
-        dest->token.kind = VLTL_LANG_TOKEN_KIND_STRING;
+        dest->token.kind = VLTL_LANG_TOKEN_KIND_LITERAL;
         dest->token.literal = (Vltl_lang_literal) {
             .name = tmp,
-            .type = &vltl_lang_type_long,
+            .type = &vltl_lang_type_nullstr,
             .attributes = { 0 },
             .fields = { copy_of_string }
         };
 
         return 0;
     } else if(token_kind == VLTL_LANG_TOKEN_KIND_CHAR) {
-        // TODO: Support hex/binary chars
-
         char char_value = 0;
 
         IESTACK_SUPPOSE(tmp[0] == '\'', EINVAL, "Bad char!");
