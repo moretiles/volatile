@@ -656,29 +656,6 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     }
 
     switch(src->root->kind) {
-    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
-        ;
-        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
-        if(created_function == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-
-        ret = vltl_lang_function_init(created_function, src->root->evaluates_to.as_unknown);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
-            return ret;
-        }
-
-        ret = nkht_set(vltl_global_table_functions, src->root->evaluates_to.as_unknown, &created_function);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
     case VLTL_SAST_OPERATION_KIND_FUNCTION:
         // this is a psuedo-instruction
         ;
@@ -696,7 +673,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
         );
         vltl_global_context.bodies[0].body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
 
-        created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
         if(created_function == NULL) {
             ret = ENOMEM;
             IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
@@ -817,170 +794,6 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
 
         return 0;
         break;
-    case VLTL_SAST_OPERATION_KIND_GLOBAL:
-        // this is a psuedo-instruction
-        ;
-
-        Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
-        Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_global == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-        *created_global = (Vltl_lang_global) {
-            .name = src->root->destination.as_unknown,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        if(src->root->destination.as_unknown == NULL) {
-            ret = EINVAL;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-            return ret;
-        }
-        ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
-    case VLTL_SAST_OPERATION_KIND_LOCAL:
-        // this is a psuedo-instruction
-        ;
-
-        if(vltl_global_context.function == NULL) {
-            return EINVAL;
-        }
-
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-
-        switch(src->root->destination.kind) {
-        case VLTL_ASM_OPERAND_KIND_MEMORY:
-            if(src->root->destination.as_memory.memory_kind != VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL) {
-                ret = EINVAL;
-                IESTACK_PUSH2(
-                    vltl_global_errors, ret, "Trying to create aliased local for something not a local!"
-                );
-                return ret;
-            }
-            ret = vltl_lang_function_local_set(
-                      vltl_global_context.function, src->root->destination.as_memory.name, &vltl_lang_type_long,
-                      NULL, created_literal
-                  );
-            if(ret) {
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-                return ret;
-            }
-
-            Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
-            *(child_with_name_of_local) = (Vltl_sast_operation) {
-                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                .belongs_to = child_with_name_of_local->belongs_to,
-                .parent = child_with_name_of_local->parent,
-                .evaluates_to = (Vltl_asm_operand) {
-                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                    .as_memory = (Vltl_asm_operand_memory) {
-                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                        .name = child_with_name_of_local->evaluates_to.as_memory.name,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
-                    }
-                }
-            };
-            break;
-        case VLTL_ASM_OPERAND_KIND_UNKNOWN:
-            if(src->root->destination.as_unknown == NULL) {
-                ret = EINVAL;
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-                return ret;
-            }
-            ret = vltl_lang_function_local_set(
-                      vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
-                      NULL, created_literal
-                  );
-            if(ret) {
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-                return ret;
-            }
-
-            child_with_name_of_local = src->root->lchild->lchild;
-            *(child_with_name_of_local) = (Vltl_sast_operation) {
-                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                .belongs_to = child_with_name_of_local->belongs_to,
-                .parent = child_with_name_of_local->parent,
-                .evaluates_to = (Vltl_asm_operand) {
-                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                    .as_memory = (Vltl_asm_operand_memory) {
-                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                        .name = child_with_name_of_local->evaluates_to.as_unknown,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
-                    }
-                }
-            };
-            break;
-        default:
-            IESTACK_RETURN(EINVAL, "Tried to create invalid local!");
-        }
-
-        return vltl_compile_convert_recurse(dest, src, src->root->lchild);
-        break;
-    case VLTL_SAST_OPERATION_KIND_CONSTANT:
-        // this is a psuedo-instruction
-        ;
-
-        Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_constant == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-        *created_constant = (Vltl_lang_constant) {
-            .name = src->root->destination.as_unknown,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        if(src->root->destination.as_unknown == NULL) {
-            ret = EINVAL;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-            return ret;
-        }
-        ret = nkht_set(vltl_global_table_constants, src->root->destination.as_unknown, &created_constant);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
     default:
         break;
     }
@@ -1029,6 +842,204 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
         if(ret) {
             return ret;
         }
+    }
+
+    switch(ast_tree.root->kind) {
+    case VLTL_AST_OPERATION_KIND_EXTERNAL:
+        ;
+        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "No name for function!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_FUNCTION, EINVAL, "External only works for functions right now!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No name for function!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_EVAL, EINVAL, "No name for function!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "No name for function!");
+        const char *external_name = ast_tree.root->lchild->lchild->evaluates_to->unknown;
+
+        size_t ignore_src_len = 0;
+        char *copy_of_external_name = varena_alloc(&vltl_global_allocator, 1 + strlen(external_name));
+        btrc_strncpy(&ignore_src_len, copy_of_external_name, external_name, strlen(external_name));
+        
+        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
+        if(created_function == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+
+        ret = vltl_lang_function_init(created_function, copy_of_external_name);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
+            return ret;
+        }
+
+        ret = nkht_set(vltl_global_table_functions, copy_of_external_name, &created_function);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CONSTANT:
+        // this is a psuedo-instruction
+        ;
+        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Constant not defined as anything!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Constant not assigned value using = (the assignment operator)!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for constant!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for constant!");
+
+        const Vltl_ast_operation *type_as = ast_tree.root->lchild->lchild;
+        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for constant is not unused!");
+        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for constant is not unused!");
+        const char *constant_name = type_as->lchild->evaluates_to->unknown;
+        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for constant!");
+        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for constant!");
+        const Vltl_lang_type *constant_type = type_as->lchild->evaluates_to->type;
+
+        ast_tree.root = ast_tree.root->lchild->rchild;
+        ast_tree.root->parent = NULL;
+        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+        IESTACK_SUPPOSE(sast_tree.root->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_IMMEDIATE, EINVAL, "Value assigned to constant could not be evaluated here and now!");
+
+        ignore_src_len = 0;
+        char *copy_of_constant_name = varena_alloc(&vltl_global_allocator, 1 + strlen(constant_name));
+        btrc_strncpy(&ignore_src_len, copy_of_constant_name, constant_name, strlen(constant_name));
+        Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
+        Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_constant == NULL || created_literal == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = constant_type,
+            .attributes = { 0 },
+            .fields = { (void *) sast_tree.root->evaluates_to.as_immediate.value }
+            //.fields = { 0 }
+        };
+        *created_constant = (Vltl_lang_constant) {
+            .name = copy_of_constant_name,
+            .type = constant_type,
+            .attributes = { 0 },
+            .literal = created_literal
+        };
+
+        ret = nkht_set(vltl_global_table_constants, copy_of_constant_name, &created_constant);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_GLOBAL:
+        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Global not defined as anything!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Global not assigned value using = (the assignment operator)!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for global!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for global!");
+
+        type_as = ast_tree.root->lchild->lchild;
+        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for global is not unused!");
+        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for global is not unused!");
+        const char *global_name = type_as->lchild->evaluates_to->unknown;
+        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for global!");
+        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for global!");
+        const Vltl_lang_type *global_type = type_as->lchild->evaluates_to->type;
+
+        ast_tree.root = ast_tree.root->lchild->rchild;
+        ast_tree.root->parent = NULL;
+        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
+        IESTACK_SUPPOSE(sast_tree.root->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_IMMEDIATE, EINVAL, "Value assigned to global could not be evaluated here and now!");
+
+        ignore_src_len = 0;
+        char *copy_of_global_name = varena_alloc(&vltl_global_allocator, 1 + strlen(global_name));
+        btrc_strncpy(&ignore_src_len, copy_of_global_name, global_name, strlen(global_name));
+
+        Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
+        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_global == NULL || created_literal == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = global_type,
+            .attributes = { 0 },
+            .fields = { (void *) sast_tree.root->evaluates_to.as_immediate.value }
+        };
+        *created_global = (Vltl_lang_global) {
+            .name = copy_of_global_name,
+            .type = global_type,
+            .attributes = { 0 },
+            .literal = created_literal
+        };
+
+        ret = nkht_set(vltl_global_table_globals, copy_of_global_name, &created_global);
+        if(ret) {
+            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
+            return ret;
+        }
+
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_LOCAL:
+        // this is a psuedo-instruction
+        ;
+
+        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Local not defined as anything!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Local not assigned value using = (the assignment operator)!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for local!");
+        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for local!");
+
+        type_as = ast_tree.root->lchild->lchild;
+        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for local is not unused!");
+        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for local is not unused!");
+        const char *local_name = type_as->lchild->evaluates_to->unknown;
+        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for local!");
+        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for local!");
+        const Vltl_lang_type *local_type = type_as->lchild->evaluates_to->type;
+
+        ignore_src_len = 0;
+        char *copy_of_local_name = varena_alloc(&vltl_global_allocator, 1 + strlen(local_name));
+        btrc_strncpy(&ignore_src_len, copy_of_local_name, local_name, strlen(local_name));
+
+        IESTACK_SUPPOSE(vltl_global_context.function != NULL, EINVAL, "Cannot create local if not inside function!");
+
+        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
+        if(created_literal == NULL) {
+            ret = ENOMEM;
+            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
+            return ret;
+        }
+        *created_literal = (Vltl_lang_literal) {
+            .name = NULL,
+            .type = local_type,
+            .attributes = { 0 },
+            .fields = { 0 }
+        };
+
+        IESTACK_HANDLE(
+                vltl_lang_function_local_set(
+                    vltl_global_context.function, copy_of_local_name, local_type,
+                    NULL, created_literal
+                    ),
+                "Failed to set newly created local!"
+                );
+
+        // reshape to compile
+        {
+            ast_tree.root = ast_tree.root->lchild;
+            ast_tree.root->parent = NULL;
+            ast_tree.root->lchild = ast_tree.root->lchild->lchild;
+            ast_tree.root->lchild->evaluates_to->kind = VLTL_LANG_TOKEN_KIND_LOCAL,
+            vltl_lang_function_local_get(&(ast_tree.root->lchild->evaluates_to->local), vltl_global_context.function, local_name);
+            ast_tree.root->lchild->parent = ast_tree.root;
+        }
+
+        break;
+    default:
+        break;
     }
 
     // sast tree
@@ -1398,19 +1409,19 @@ vltl_compile_file_debug:
             fprintf(assembly_file, ".global %s\n", iterated_global_key);
             fprintf(assembly_file, ".type %s, gnu_unique_object\n", iterated_global_key);
             if(iterated_global_val->literal->type == &vltl_lang_type_nullstr) {
-            fprintf(
-                assembly_file,
-                "%s: .asciz \"%s\"\n",
-                iterated_global_key,
-                (const char *) iterated_global_val->literal->fields[0]
-            );
+                fprintf(
+                    assembly_file,
+                    "%s: .asciz \"%s\"\n",
+                    iterated_global_key,
+                    (const char *) iterated_global_val->literal->fields[0]
+                );
             } else {
-            fprintf(
-                assembly_file,
-                "%s: .quad %ld\n",
-                iterated_global_key,
-                (int64_t) iterated_global_val->literal->fields[0]
-            );
+                fprintf(
+                    assembly_file,
+                    "%s: .quad %ld\n",
+                    iterated_global_key,
+                    (int64_t) iterated_global_val->literal->fields[0]
+                );
             }
         }
     }

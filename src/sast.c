@@ -3109,6 +3109,10 @@ int vltl_sast_tree_reshape_eval(Vltl_sast_tree *tree, Vltl_sast_operation *opera
         break;
     }
 
+    if(operation->parent == NULL) {
+        return 0;
+    }
+
     // see if should not reshape because a pointer is expected
     switch(operation->parent->kind) {
     case VLTL_SAST_OPERATION_KIND_TYPEAS:

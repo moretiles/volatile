@@ -2,5 +2,5 @@ function main_function_main ( ) {
     return main_function_num_1 + main_function_num_2
 }
 
-global main_function_num_1 = 5
-global main_function_num_2 = 4 + 3 + 2 + 1
+global main_function_num_1: long = 5
+global main_function_num_2: long = 4 + 3 + 2 + 1

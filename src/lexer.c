@@ -126,7 +126,9 @@ int vltl_lexer_line_convert(Vltl_lexer_line *dest, const char *src) {
             dest->tokens[current_token_index].token.kind == VLTL_LANG_TOKEN_KIND_OPERATION &&
             dest->tokens[current_token_index].token.operation->operation_kind == VLTL_LANG_OPERATION_KIND_COMMENT
         ) {
-            dest->tokens[current_token_index].token = (Vltl_lang_token) { 0 };
+            dest->tokens[current_token_index].token = (Vltl_lang_token) {
+                0
+            };
             done = true;
             continue;
         }
