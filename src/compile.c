@@ -910,8 +910,13 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
 
     // ast tree
     ret = vltl_ast_tree_convert(&ast_tree, &line);
-    // TODO: figure out better way to conditionally enable dumping of ast_tree to graphviz
-    if(ret || true) {
+
+    #if VLTL_DEBUG == 1
+    bool dump_ast = true;
+    #else
+    bool dump_ast = false;
+    #endif
+    if(dump_ast) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
         debug_file = fopen("scratch/ast_debug.dot", "w");
@@ -931,8 +936,12 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
 
     // sast tree
     ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-    // TODO: figure out better way to conditionally enable dumping of sast_tree to graphviz
-    if(ret || true) {
+    #if VLTL_DEBUG == 1
+    bool dump_sast = true;
+    #else
+    bool dump_sast = false;
+    #endif
+    if(dump_sast) {
         debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
         vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
         debug_file = fopen("scratch/sast_debug.dot", "w");

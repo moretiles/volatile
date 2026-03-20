@@ -37,11 +37,11 @@ test2
 
 # exe
 vltl
-example/*.bin
-example/*.bin.S
+examples/*.bin
+examples/*.bin.S
 
 # directory for random stuff
-/scratch/
+/scratch/[^.]*
 
 # temporary test files
 /tests/*/*.S
