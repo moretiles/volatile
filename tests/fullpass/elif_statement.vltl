@@ -1,5 +1,5 @@
 function elif_statement_main ( ) {
-    local a = 50
+    local a: long = 50
 
     if(a == 10) {
         a = 2000

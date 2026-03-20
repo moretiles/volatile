@@ -1,7 +1,7 @@
 function else_statement_main ( ) {
-    local a = 500
-    local b = 0
-    local c = 0
+    local a: long = 500
+    local b: long = 0
+    local c: long = 0
 
     if(a == 100) {
         b = 1

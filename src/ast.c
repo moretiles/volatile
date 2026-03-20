@@ -162,6 +162,11 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_GLOBAL:
     case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+    case VLTL_AST_OPERATION_KIND_CDECL4:
     case VLTL_AST_OPERATION_KIND_IF:
     case VLTL_AST_OPERATION_KIND_ELIF:
     case VLTL_AST_OPERATION_KIND_ELSE:
@@ -274,6 +279,21 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         src_string = "function";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+        src_string = "cdecl0";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+        src_string = "cdecl1";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+        src_string = "cdecl2";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+        src_string = "cdecl3";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL4:
+        src_string = "cdecl4";
         break;
     case VLTL_AST_OPERATION_KIND_IF:
         src_string = "if";
@@ -494,6 +514,11 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_EXTERNAL:
     case VLTL_AST_OPERATION_KIND_RETURN:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+    case VLTL_AST_OPERATION_KIND_CDECL4:
     case VLTL_AST_OPERATION_KIND_IF:
     case VLTL_AST_OPERATION_KIND_ELIF:
     case VLTL_AST_OPERATION_KIND_ELSE:
@@ -580,7 +605,7 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         return 1;
         break;
     case VLTL_AST_OPERATION_KIND_EXTERNAL:
-        return 1;
+        return 2;
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
         return 1;
@@ -596,6 +621,21 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         return 3;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL4:
+        return 0;
         break;
     case VLTL_AST_OPERATION_KIND_IF:
         return 2;
@@ -933,6 +973,11 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         }
     }
 
+    IESTACK_SUPPOSE(
+        vltl_ast_operation_argc(*pushed) < vltl_ast_operation_expected_argc(*pushed),
+        EINVAL,
+        "Cannot take ownership of this node!"
+    );
     if(target == NULL) {
         IESTACK_HANDLE(vltl_ast_operation_adopt(tree, pushed, tree->root), "Unable to adopt pushed!");
     } else if(need_to_displace) {
@@ -967,7 +1012,8 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
     }
 
     memset(dest, 0, sizeof(Vltl_ast_tree));
-    for(size_t i = 0; i < src->token_count; i++) {
+    size_t i = 0;
+    for(i = 0; i < src->token_count; i++) {
         push_this = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_ast_operation));
         if(!push_this) {
             return ENOMEM;
@@ -1032,7 +1078,18 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
         switch(src->tokens[i].token.kind) {
         case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
         case VLTL_LANG_TOKEN_KIND_TYPE:
-            // not implemented yet
+            operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_TYPE;
+            evaluates_to->type = src->tokens[i].token.type;
+            result_type = src->tokens[i].token.type;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+            break;
+
             return ENOTRECOVERABLE;
             break;
         case VLTL_LANG_TOKEN_KIND_FUNCTION:

@@ -1,8 +1,8 @@
 function if_statement_main ( ) {
-    local a = 0
-    local b = 800
-    local c = 0
-    local d = 2
+    local a: long = 0
+    local b: long = 800
+    local c: long = 0
+    local d: long = 2
 
     if(100) {
         a = 7000

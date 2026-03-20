@@ -1,8 +1,8 @@
 function index_into_main ( ) {
-    local a = 3
-    local b = 2
-    local c = 1
-    local d = &c
+    local a: long = 3
+    local b: long = 2
+    local c: long = 1
+    local d: long = &c
 
     return d[0] + d[1] + d[2]
 }

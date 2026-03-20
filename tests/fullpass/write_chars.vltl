@@ -1,12 +1,12 @@
-external function puts ( ) {
+external function puts ( ) { }
 
 function write_chars_main ( ) {
-    local i = '0'
-    local j = '\b111'
-    local k = '\x33'
+    local i: long = '0'
+    local j: long = '\b111'
+    local k: long = '\x33'
 
     // can't yet do puts("Hello world!") because my code bad
-    local str = "Hello world!" // have to do this instead ):
+    local str: nullstr = "Hello world!" // have to do this instead ):
     puts(str)
     
     return 0

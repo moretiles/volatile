@@ -1,4 +1,4 @@
-external function puts ( ) {
+external function puts ( ) { }
 
 function write_chars_main ( ) {
     local i = '0'

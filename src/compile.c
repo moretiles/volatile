@@ -4,6 +4,9 @@
 #include <isa.h>
 #include <compile.h>
 #include <trace.h>
+#include <ast.h>
+#include <sast.h>
+#include <reshape.h>
 #include <error.h>
 
 #include <errno.h>
@@ -112,6 +115,76 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
     IESTACK_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
 
     switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_CDECL0:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL1:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL2:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL3:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\tmov -24[%rbp], %rdx\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL4:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\tmov -24[%rbp], %rdx\n", dest);
+        fputs("\tmov -32[%rbp], %rcx\n", dest);
+        fputs("\n", dest);
+        break;
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
         IESTACK_SUPPOSE(
             vltl_global_context.indentation_level < (VLTL_LANG_BODY_CAP + 1),
@@ -528,6 +601,11 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     const char *fstring = NULL;
 
     switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_CDECL0:
+    case VLTL_SAST_OPERATION_KIND_CDECL1:
+    case VLTL_SAST_OPERATION_KIND_CDECL2:
+    case VLTL_SAST_OPERATION_KIND_CDECL3:
+    case VLTL_SAST_OPERATION_KIND_CDECL4:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_IF:
@@ -592,6 +670,7 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         return vltl_compile_operation_convert_instruction(dest, src);
         break;
     }
+
     return 0;
 }
 
@@ -656,8 +735,23 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
     }
 
     switch(src->root->kind) {
-    case VLTL_SAST_OPERATION_KIND_EXTERNAL:
+    case VLTL_SAST_OPERATION_KIND_FUNCTION:
+        // this is a psuedo-instruction
         ;
+
+        // TODO: Fully implement functions
+        // Need to figure out how I want to store function and what is associated with it
+        IESTACK_SUPPOSE(vltl_global_context.indentation_level == 0, ENOTRECOVERABLE, "Can't open function here!");
+        vltl_global_context.indentation_level = 1;
+        IESTACK_HANDLE(
+            nkht_init(
+                &(vltl_global_context.bodies[0].local_variables),
+                sizeof(Vltl_lang_local *)
+            ),
+            "Could not initialize hash table for local variables!"
+        );
+        vltl_global_context.bodies[0].body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
+
         Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
         if(created_function == NULL) {
             ret = ENOMEM;
@@ -676,57 +770,7 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
             return ret;
         }
-
-        return 0;
-        break;
-    case VLTL_SAST_OPERATION_KIND_FUNCTION:
-        // this is a psuedo-instruction
-        ;
-
-        // TODO: Fully implement functions
-        // Need to figure out how I want to store function and what is associated with it
-        IESTACK_SUPPOSE(vltl_global_context.indentation_level == 0, ENOTRECOVERABLE, "Can't open function here!");
-        vltl_global_context.indentation_level = 1;
-        IESTACK_HANDLE(
-            nkht_init(
-                &(vltl_global_context.bodies[0].local_variables),
-                sizeof(Vltl_lang_local *)
-            ),
-            "Could not initialize hash table for local variables!"
-        );
-        vltl_global_context.bodies[0].body_kind = VLTL_LANG_BODY_KIND_FUNCTION;
-
-        created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
-        if(created_function == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-
-        ret = vltl_lang_function_init(created_function, src->root->evaluates_to.as_unknown);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
-            return ret;
-        }
-
-        ret = nkht_set(vltl_global_table_functions, src->root->evaluates_to.as_unknown, &created_function);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
         vltl_global_context.function = created_function;
-        fputs(src->root->evaluates_to.as_unknown, dest);
-        fputs(":\n", dest);
-
-        // TODO: handle decrementing for storage of locals with a given function in a smart way
-        fputs("\tpush %rbp\n", dest);
-        fputs("\tpush %rbx\n", dest);
-        fputs("\tpush %r12\n", dest);
-        fputs("\tpush %r13\n", dest);
-        fputs("\tpush %r14\n", dest);
-        fputs("\tpush %r15\n", dest);
-        fputs("\tmov %rbp, %rsp\n", dest);
-        fputs("\tsub %rsp, 0x400\n", dest);
 
         if(src->root->rchild && src->root->rchild->lchild) {
             switch(src->root->rchild->lchild->kind) {
@@ -760,7 +804,11 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                     return ret;
                 }
 
-                fputs("\tmov -8[%rbp], %rdi\n", dest);
+                *(src->root) = (Vltl_sast_operation) {
+                    .belongs_to = src->root->belongs_to,
+                    .evaluates_to = src->root->evaluates_to
+                };
+                src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL1;
                 break;
             case(VLTL_SAST_OPERATION_KIND_CSV):
                 for(size_t i = 0; i < vltl_sast_operation_args_argc(*(src->root->rchild->lchild)); i++) {
@@ -791,195 +839,39 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                         IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                         return ret;
                     }
-
-                    switch(i) {
-                    case 0:
-                        fputs("\tmov -8[%rbp], %rdi\n", dest);
-                        break;
-                    case 1:
-                        fputs("\tmov -16[%rbp], %rsi\n", dest);
-                        break;
-                    case 2:
-                        fputs("\tmov -24[%rbp], %rdx\n", dest);
-                        break;
-                    case 3:
-                        fputs("\tmov -32[%rbp], %rcx\n", dest);
-                        break;
-                    default:
-                        IESTACK_RETURN(ENOTRECOVERABLE, "Don't know that register!");
-                        break;
-                    }
                 }
+
+                size_t num_arguments = vltl_sast_operation_args_argc(*(src->root->rchild->lchild));
+                *(src->root) = (Vltl_sast_operation) {
+                    .belongs_to = src->root->belongs_to,
+                    .evaluates_to = src->root->evaluates_to
+                };
+                switch(num_arguments) {
+                case 0:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL0;
+                    break;
+                case 1:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL1;
+                    break;
+                case 2:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL2;
+                    break;
+                case 3:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL3;
+                    break;
+                case 4:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL4;
+                    break;
+                default:
+                    IESTACK_RETURN(ENOTRECOVERABLE, "Don't know that register!");
+                    break;
+                }
+                break;
             default:
                 break;
             }
         }
 
-        return 0;
-        break;
-    case VLTL_SAST_OPERATION_KIND_GLOBAL:
-        // this is a psuedo-instruction
-        ;
-
-        Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
-        Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_global == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-        *created_global = (Vltl_lang_global) {
-            .name = src->root->destination.as_unknown,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        if(src->root->destination.as_unknown == NULL) {
-            ret = EINVAL;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-            return ret;
-        }
-        ret = nkht_set(vltl_global_table_globals, src->root->destination.as_unknown, &created_global);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
-    case VLTL_SAST_OPERATION_KIND_LOCAL:
-        // this is a psuedo-instruction
-        ;
-
-        if(vltl_global_context.function == NULL) {
-            return EINVAL;
-        }
-
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-
-        switch(src->root->destination.kind) {
-        case VLTL_ASM_OPERAND_KIND_MEMORY:
-            if(src->root->destination.as_memory.memory_kind != VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL) {
-                ret = EINVAL;
-                IESTACK_PUSH2(
-                    vltl_global_errors, ret, "Trying to create aliased local for something not a local!"
-                );
-                return ret;
-            }
-            ret = vltl_lang_function_local_set(
-                      vltl_global_context.function, src->root->destination.as_memory.name, &vltl_lang_type_long,
-                      NULL, created_literal
-                  );
-            if(ret) {
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-                return ret;
-            }
-
-            Vltl_sast_operation *child_with_name_of_local = src->root->lchild->lchild;
-            *(child_with_name_of_local) = (Vltl_sast_operation) {
-                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                .belongs_to = child_with_name_of_local->belongs_to,
-                .parent = child_with_name_of_local->parent,
-                .evaluates_to = (Vltl_asm_operand) {
-                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                    .as_memory = (Vltl_asm_operand_memory) {
-                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                        .name = child_with_name_of_local->evaluates_to.as_memory.name,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
-                    }
-                }
-            };
-            break;
-        case VLTL_ASM_OPERAND_KIND_UNKNOWN:
-            if(src->root->destination.as_unknown == NULL) {
-                ret = EINVAL;
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-                return ret;
-            }
-            ret = vltl_lang_function_local_set(
-                      vltl_global_context.function, src->root->destination.as_unknown, &vltl_lang_type_long,
-                      NULL, created_literal
-                  );
-            if(ret) {
-                IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-                return ret;
-            }
-
-            child_with_name_of_local = src->root->lchild->lchild;
-            *(child_with_name_of_local) = (Vltl_sast_operation) {
-                .kind = VLTL_SAST_OPERATION_KIND_EVAL,
-                .belongs_to = child_with_name_of_local->belongs_to,
-                .parent = child_with_name_of_local->parent,
-                .evaluates_to = (Vltl_asm_operand) {
-                    .kind = VLTL_ASM_OPERAND_KIND_MEMORY,
-                    .as_memory = (Vltl_asm_operand_memory) {
-                        .memory_kind = VLTL_ASM_OPERAND_MEMORY_KIND_LOCAL,
-                        .name = child_with_name_of_local->evaluates_to.as_unknown,
-                        .integral_type = VLTL_LANG_TYPE_INTEGRAL_INT_SCALAR64
-                    }
-                }
-            };
-            break;
-        default:
-            IESTACK_RETURN(EINVAL, "Tried to create invalid local!");
-        }
-
-        return vltl_compile_convert_recurse(dest, src, src->root->lchild);
-        break;
-    case VLTL_SAST_OPERATION_KIND_CONSTANT:
-        // this is a psuedo-instruction
-        ;
-
-        Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_constant == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .fields = { (void *) src->root->evaluates_to.as_immediate.value }
-        };
-        *created_constant = (Vltl_lang_constant) {
-            .name = src->root->destination.as_unknown,
-            .type = &vltl_lang_type_long,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        if(src->root->destination.as_unknown == NULL) {
-            ret = EINVAL;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unknown string pointer is NULL!");
-            return ret;
-        }
-        ret = nkht_set(vltl_global_table_constants, src->root->destination.as_unknown, &created_constant);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
         break;
     default:
         break;
@@ -1029,6 +921,12 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
         if(ret) {
             return ret;
         }
+    }
+
+    bool done_now = false;
+    IESTACK_HANDLE(vltl_reshape_ast_tree(&ast_tree, &done_now), "Reshaping failed!");
+    if(done_now) {
+        return 0;
     }
 
     // sast tree
@@ -1398,19 +1296,19 @@ vltl_compile_file_debug:
             fprintf(assembly_file, ".global %s\n", iterated_global_key);
             fprintf(assembly_file, ".type %s, gnu_unique_object\n", iterated_global_key);
             if(iterated_global_val->literal->type == &vltl_lang_type_nullstr) {
-            fprintf(
-                assembly_file,
-                "%s: .asciz \"%s\"\n",
-                iterated_global_key,
-                (const char *) iterated_global_val->literal->fields[0]
-            );
+                fprintf(
+                    assembly_file,
+                    "%s: .asciz \"%s\"\n",
+                    iterated_global_key,
+                    (const char *) iterated_global_val->literal->fields[0]
+                );
             } else {
-            fprintf(
-                assembly_file,
-                "%s: .quad %ld\n",
-                iterated_global_key,
-                (int64_t) iterated_global_val->literal->fields[0]
-            );
+                fprintf(
+                    assembly_file,
+                    "%s: .quad %ld\n",
+                    iterated_global_key,
+                    (int64_t) iterated_global_val->literal->fields[0]
+                );
             }
         }
     }

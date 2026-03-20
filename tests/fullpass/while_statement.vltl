@@ -1,6 +1,6 @@
 function while_statement_main ( ) {
-    local a = 30
-    local b = 0
+    local a: long = 30
+    local b: long = 0
 
     while(a) {
         b = b + 33

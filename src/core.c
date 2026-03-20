@@ -11,6 +11,7 @@
 #include <sast.c>
 #include <trace.c>
 #include <error.c>
+#include <reshape.c>
 #include <siphash.c>
 #include <dye.c>
 

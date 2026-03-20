@@ -37,6 +37,42 @@ void vltl_lang_function_deinit(Vltl_lang_function *function) {
     return;
 }
 
+bool vltl_lang_function_local_exists_here(Vltl_lang_function *function, const char *name) {
+    if(function == NULL || name == NULL) {
+        return false;
+    }
+
+    Vltl_lang_local *local = NULL;
+    size_t index = vltl_global_context.indentation_level - 1;
+    Nkht *local_variables = &(vltl_global_context.bodies[index].local_variables);
+    if(nkht_get(local_variables, name, &local)) {
+        return false;
+    }
+
+    if(local == NULL) {
+        return false;
+    }
+
+    return true;
+}
+
+bool vltl_lang_function_local_exists(Vltl_lang_function *function, const char *name) {
+    if(function == NULL || name == NULL) {
+        return false;
+    }
+
+    Vltl_lang_local *local = NULL;
+    if(vltl_lang_function_local_get(&local, function, name)) {
+        return false;
+    }
+
+    if(local == NULL) {
+        return false;
+    }
+
+    return true;
+}
+
 int vltl_lang_function_local_get(Vltl_lang_local **dest, Vltl_lang_function *function, const char *name) {
     int ret = ENODATA;
     if(function == NULL || name == NULL) {
