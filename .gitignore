@@ -38,9 +38,6 @@ test2
 # exe
 vltl
 
-# temporary exe
-asm
-
 # directory for random stuff
 /scratch/
 
