@@ -37,6 +37,8 @@ test2
 
 # exe
 vltl
+example/*.bin
+example/*.bin.S
 
 # directory for random stuff
 /scratch/
