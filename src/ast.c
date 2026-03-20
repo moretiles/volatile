@@ -162,6 +162,11 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
     case VLTL_AST_OPERATION_KIND_GLOBAL:
     case VLTL_AST_OPERATION_KIND_LOCAL:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+    case VLTL_AST_OPERATION_KIND_CDECL4:
     case VLTL_AST_OPERATION_KIND_IF:
     case VLTL_AST_OPERATION_KIND_ELIF:
     case VLTL_AST_OPERATION_KIND_ELSE:
@@ -274,6 +279,21 @@ int vltl_ast_operation_kind_detokenize(
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         src_string = "function";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+        src_string = "cdecl0";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+        src_string = "cdecl1";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+        src_string = "cdecl2";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+        src_string = "cdecl3";
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL4:
+        src_string = "cdecl4";
         break;
     case VLTL_AST_OPERATION_KIND_IF:
         src_string = "if";
@@ -494,6 +514,11 @@ bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind)
     case VLTL_AST_OPERATION_KIND_EXTERNAL:
     case VLTL_AST_OPERATION_KIND_RETURN:
     case VLTL_AST_OPERATION_KIND_FUNCTION:
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+    case VLTL_AST_OPERATION_KIND_CDECL4:
     case VLTL_AST_OPERATION_KIND_IF:
     case VLTL_AST_OPERATION_KIND_ELIF:
     case VLTL_AST_OPERATION_KIND_ELSE:
@@ -596,6 +621,21 @@ size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
         return 3;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL0:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL1:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL2:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL3:
+        return 0;
+        break;
+    case VLTL_AST_OPERATION_KIND_CDECL4:
+        return 0;
         break;
     case VLTL_AST_OPERATION_KIND_IF:
         return 2;

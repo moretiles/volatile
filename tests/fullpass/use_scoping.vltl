@@ -3,9 +3,9 @@ function use_scoping_main ( ) {
     local a: long = 1
 
     {
-        local: long a = 3
+        local a: long = 3
         {
-            local: long a = 6
+            local a: long = 6
             b = b + a
         }
     }

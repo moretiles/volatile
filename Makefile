@@ -24,6 +24,7 @@ objs += obj/sast.o
 objs += obj/convert.o
 objs += obj/trace.o
 objs += obj/error.o
+objs += obj/reshape.o
 objs += obj/ds.o
 objs += obj/siphash.o
 objs += obj/dye.o
@@ -113,6 +114,9 @@ obj/ds.o: src/ds/*.c header/ds/*.h
 
 obj/trace.o: src/trace.c header/trace.h
 	${CC} ${DEBUG} ${CFLAGS} src/trace.c -c -o obj/trace.o ${INCLUDE} ${LIBRARIES}
+
+obj/reshape.o: src/reshape.c header/reshape.h
+	${CC} ${DEBUG} ${CFLAGS} src/reshape.c -c -o obj/reshape.o ${INCLUDE} ${LIBRARIES}
 
 obj/error.o: src/error.c header/error.h
 	${CC} ${DEBUG} ${CFLAGS} src/error.c -c -o obj/error.o ${INCLUDE} ${LIBRARIES}

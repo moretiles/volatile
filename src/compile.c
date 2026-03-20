@@ -4,6 +4,9 @@
 #include <isa.h>
 #include <compile.h>
 #include <trace.h>
+#include <ast.h>
+#include <sast.h>
+#include <reshape.h>
 #include <error.h>
 
 #include <errno.h>
@@ -112,6 +115,76 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
     IESTACK_SUPPOSE(src != NULL, EINVAL, "src is NULL!");
 
     switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_CDECL0:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL1:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL2:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL3:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\tmov -24[%rbp], %rdx\n", dest);
+        fputs("\n", dest);
+        break;
+    case VLTL_SAST_OPERATION_KIND_CDECL4:
+        fprintf(dest, "%s:\n", src->evaluates_to.as_function->name);
+        fputs("\tpush %rbp\n", dest);
+        fputs("\tpush %rbx\n", dest);
+        fputs("\tpush %r12\n", dest);
+        fputs("\tpush %r13\n", dest);
+        fputs("\tpush %r14\n", dest);
+        fputs("\tpush %r15\n", dest);
+        fputs("\tmov %rbp, %rsp\n", dest);
+        fputs("\tsub %rsp, 0x400\n", dest);
+        fputs("\tmov -8[%rbp], %rdi\n", dest);
+        fputs("\tmov -16[%rbp], %rsi\n", dest);
+        fputs("\tmov -24[%rbp], %rdx\n", dest);
+        fputs("\tmov -32[%rbp], %rcx\n", dest);
+        fputs("\n", dest);
+        break;
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
         IESTACK_SUPPOSE(
             vltl_global_context.indentation_level < (VLTL_LANG_BODY_CAP + 1),
@@ -528,6 +601,11 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
     const char *fstring = NULL;
 
     switch(src->kind) {
+    case VLTL_SAST_OPERATION_KIND_CDECL0:
+    case VLTL_SAST_OPERATION_KIND_CDECL1:
+    case VLTL_SAST_OPERATION_KIND_CDECL2:
+    case VLTL_SAST_OPERATION_KIND_CDECL3:
+    case VLTL_SAST_OPERATION_KIND_CDECL4:
     case VLTL_SAST_OPERATION_KIND_BODY_OPEN:
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_SAST_OPERATION_KIND_IF:
@@ -592,6 +670,7 @@ int vltl_compile_operation_convert(FILE *dest, Vltl_sast_operation *src) {
         return vltl_compile_operation_convert_instruction(dest, src);
         break;
     }
+
     return 0;
 }
 
@@ -692,18 +771,6 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
             return ret;
         }
         vltl_global_context.function = created_function;
-        fputs(src->root->evaluates_to.as_unknown, dest);
-        fputs(":\n", dest);
-
-        // TODO: handle decrementing for storage of locals with a given function in a smart way
-        fputs("\tpush %rbp\n", dest);
-        fputs("\tpush %rbx\n", dest);
-        fputs("\tpush %r12\n", dest);
-        fputs("\tpush %r13\n", dest);
-        fputs("\tpush %r14\n", dest);
-        fputs("\tpush %r15\n", dest);
-        fputs("\tmov %rbp, %rsp\n", dest);
-        fputs("\tsub %rsp, 0x400\n", dest);
 
         if(src->root->rchild && src->root->rchild->lchild) {
             switch(src->root->rchild->lchild->kind) {
@@ -737,7 +804,11 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                     return ret;
                 }
 
-                fputs("\tmov -8[%rbp], %rdi\n", dest);
+                *(src->root) = (Vltl_sast_operation) {
+                    .belongs_to = src->root->belongs_to,
+                    .evaluates_to = src->root->evaluates_to
+                };
+                src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL1;
                 break;
             case(VLTL_SAST_OPERATION_KIND_CSV):
                 for(size_t i = 0; i < vltl_sast_operation_args_argc(*(src->root->rchild->lchild)); i++) {
@@ -768,31 +839,39 @@ int vltl_compile_convert(FILE *dest, Vltl_sast_tree *src) {
                         IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                         return ret;
                     }
-
-                    switch(i) {
-                    case 0:
-                        fputs("\tmov -8[%rbp], %rdi\n", dest);
-                        break;
-                    case 1:
-                        fputs("\tmov -16[%rbp], %rsi\n", dest);
-                        break;
-                    case 2:
-                        fputs("\tmov -24[%rbp], %rdx\n", dest);
-                        break;
-                    case 3:
-                        fputs("\tmov -32[%rbp], %rcx\n", dest);
-                        break;
-                    default:
-                        IESTACK_RETURN(ENOTRECOVERABLE, "Don't know that register!");
-                        break;
-                    }
                 }
+
+                size_t num_arguments = vltl_sast_operation_args_argc(*(src->root->rchild->lchild));
+                *(src->root) = (Vltl_sast_operation) {
+                    .belongs_to = src->root->belongs_to,
+                    .evaluates_to = src->root->evaluates_to
+                };
+                switch(num_arguments) {
+                case 0:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL0;
+                    break;
+                case 1:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL1;
+                    break;
+                case 2:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL2;
+                    break;
+                case 3:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL3;
+                    break;
+                case 4:
+                    src->root->kind = VLTL_SAST_OPERATION_KIND_CDECL4;
+                    break;
+                default:
+                    IESTACK_RETURN(ENOTRECOVERABLE, "Don't know that register!");
+                    break;
+                }
+                break;
             default:
                 break;
             }
         }
 
-        return 0;
         break;
     default:
         break;
@@ -844,202 +923,10 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
         }
     }
 
-    switch(ast_tree.root->kind) {
-    case VLTL_AST_OPERATION_KIND_EXTERNAL:
-        ;
-        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "No name for function!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_FUNCTION, EINVAL, "External only works for functions right now!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No name for function!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_EVAL, EINVAL, "No name for function!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "No name for function!");
-        const char *external_name = ast_tree.root->lchild->lchild->evaluates_to->unknown;
-
-        size_t ignore_src_len = 0;
-        char *copy_of_external_name = varena_alloc(&vltl_global_allocator, 1 + strlen(external_name));
-        btrc_strncpy(&ignore_src_len, copy_of_external_name, external_name, strlen(external_name));
-        
-        Vltl_lang_function *created_function = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_function));
-        if(created_function == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-
-        ret = vltl_lang_function_init(created_function, copy_of_external_name);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not initialize lexer function!");
-            return ret;
-        }
-
-        ret = nkht_set(vltl_global_table_functions, copy_of_external_name, &created_function);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
+    bool done_now = false;
+    IESTACK_HANDLE(vltl_reshape_ast_tree(&ast_tree, &done_now), "Reshaping failed!");
+    if(done_now) {
         return 0;
-        break;
-    case VLTL_AST_OPERATION_KIND_CONSTANT:
-        // this is a psuedo-instruction
-        ;
-        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Constant not defined as anything!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Constant not assigned value using = (the assignment operator)!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for constant!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for constant!");
-
-        const Vltl_ast_operation *type_as = ast_tree.root->lchild->lchild;
-        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for constant is not unused!");
-        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for constant is not unused!");
-        const char *constant_name = type_as->lchild->evaluates_to->unknown;
-        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for constant!");
-        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for constant!");
-        const Vltl_lang_type *constant_type = type_as->lchild->evaluates_to->type;
-
-        ast_tree.root = ast_tree.root->lchild->rchild;
-        ast_tree.root->parent = NULL;
-        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-        IESTACK_SUPPOSE(sast_tree.root->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_IMMEDIATE, EINVAL, "Value assigned to constant could not be evaluated here and now!");
-
-        ignore_src_len = 0;
-        char *copy_of_constant_name = varena_alloc(&vltl_global_allocator, 1 + strlen(constant_name));
-        btrc_strncpy(&ignore_src_len, copy_of_constant_name, constant_name, strlen(constant_name));
-        Vltl_lang_constant *created_constant = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_constant));
-        Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_constant == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = constant_type,
-            .attributes = { 0 },
-            .fields = { (void *) sast_tree.root->evaluates_to.as_immediate.value }
-            //.fields = { 0 }
-        };
-        *created_constant = (Vltl_lang_constant) {
-            .name = copy_of_constant_name,
-            .type = constant_type,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        ret = nkht_set(vltl_global_table_constants, copy_of_constant_name, &created_constant);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
-    case VLTL_AST_OPERATION_KIND_GLOBAL:
-        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Global not defined as anything!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Global not assigned value using = (the assignment operator)!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for global!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for global!");
-
-        type_as = ast_tree.root->lchild->lchild;
-        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for global is not unused!");
-        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for global is not unused!");
-        const char *global_name = type_as->lchild->evaluates_to->unknown;
-        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for global!");
-        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for global!");
-        const Vltl_lang_type *global_type = type_as->lchild->evaluates_to->type;
-
-        ast_tree.root = ast_tree.root->lchild->rchild;
-        ast_tree.root->parent = NULL;
-        ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-        IESTACK_SUPPOSE(sast_tree.root->evaluates_to.kind == VLTL_ASM_OPERAND_KIND_IMMEDIATE, EINVAL, "Value assigned to global could not be evaluated here and now!");
-
-        ignore_src_len = 0;
-        char *copy_of_global_name = varena_alloc(&vltl_global_allocator, 1 + strlen(global_name));
-        btrc_strncpy(&ignore_src_len, copy_of_global_name, global_name, strlen(global_name));
-
-        Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_global == NULL || created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = global_type,
-            .attributes = { 0 },
-            .fields = { (void *) sast_tree.root->evaluates_to.as_immediate.value }
-        };
-        *created_global = (Vltl_lang_global) {
-            .name = copy_of_global_name,
-            .type = global_type,
-            .attributes = { 0 },
-            .literal = created_literal
-        };
-
-        ret = nkht_set(vltl_global_table_globals, copy_of_global_name, &created_global);
-        if(ret) {
-            IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
-            return ret;
-        }
-
-        return 0;
-        break;
-    case VLTL_AST_OPERATION_KIND_LOCAL:
-        // this is a psuedo-instruction
-        ;
-
-        IESTACK_SUPPOSE(ast_tree.root->lchild, EINVAL, "Local not defined as anything!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->kind == VLTL_AST_OPERATION_KIND_EQUALS, EINVAL, "Local not assigned value using = (the assignment operator)!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild, EINVAL, "No type set for local!");
-        IESTACK_SUPPOSE(ast_tree.root->lchild->lchild->kind == VLTL_AST_OPERATION_KIND_TYPEAS, EINVAL, "No type set for local!");
-
-        type_as = ast_tree.root->lchild->lchild;
-        IESTACK_SUPPOSE(type_as->lchild, EINVAL, "Name used for local is not unused!");
-        IESTACK_SUPPOSE(type_as->lchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_UNKNOWN, EINVAL, "Name used for local is not unused!");
-        const char *local_name = type_as->lchild->evaluates_to->unknown;
-        IESTACK_SUPPOSE(type_as->rchild, EINVAL, "Existing type not provided for local!");
-        IESTACK_SUPPOSE(type_as->rchild->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Existing type not provided for local!");
-        const Vltl_lang_type *local_type = type_as->lchild->evaluates_to->type;
-
-        ignore_src_len = 0;
-        char *copy_of_local_name = varena_alloc(&vltl_global_allocator, 1 + strlen(local_name));
-        btrc_strncpy(&ignore_src_len, copy_of_local_name, local_name, strlen(local_name));
-
-        IESTACK_SUPPOSE(vltl_global_context.function != NULL, EINVAL, "Cannot create local if not inside function!");
-
-        created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-        if(created_literal == NULL) {
-            ret = ENOMEM;
-            IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
-            return ret;
-        }
-        *created_literal = (Vltl_lang_literal) {
-            .name = NULL,
-            .type = local_type,
-            .attributes = { 0 },
-            .fields = { 0 }
-        };
-
-        IESTACK_HANDLE(
-                vltl_lang_function_local_set(
-                    vltl_global_context.function, copy_of_local_name, local_type,
-                    NULL, created_literal
-                    ),
-                "Failed to set newly created local!"
-                );
-
-        // reshape to compile
-        {
-            ast_tree.root = ast_tree.root->lchild;
-            ast_tree.root->parent = NULL;
-            ast_tree.root->lchild = ast_tree.root->lchild->lchild;
-            ast_tree.root->lchild->evaluates_to->kind = VLTL_LANG_TOKEN_KIND_LOCAL,
-            vltl_lang_function_local_get(&(ast_tree.root->lchild->evaluates_to->local), vltl_global_context.function, local_name);
-            ast_tree.root->lchild->parent = ast_tree.root;
-        }
-
-        break;
-    default:
-        break;
     }
 
     // sast tree

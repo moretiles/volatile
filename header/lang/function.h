@@ -46,6 +46,9 @@ typedef struct vltl_lang_function {
 
 int vltl_lang_function_init(Vltl_lang_function *dest, const char *name);
 void vltl_lang_function_deinit(Vltl_lang_function *function);
+
+bool vltl_lang_function_local_exists(Vltl_lang_function *function, const char *name);
+bool vltl_lang_function_local_exists_here(Vltl_lang_function *function, const char *name);
 int vltl_lang_function_local_get(Vltl_lang_local **dest, Vltl_lang_function *function, const char *name);
 int vltl_lang_function_local_set(
     Vltl_lang_function *function, const char *name, const Vltl_lang_type *type,
