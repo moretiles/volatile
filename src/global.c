@@ -246,10 +246,10 @@ const struct vltl_global_register vltl_global_registers_amd64[] = {
 };
 
 __attribute__((constructor)) int vltl_global_init(void) {
+    vltl_global_allocator_init();
     vltl_global_config_init();
     vltl_global_context_init();
     vltl_global_registers_init();
-    vltl_global_allocator_init();
     vltl_global_errors_init();
     vltl_global_table_init();
 
@@ -259,10 +259,10 @@ __attribute__((constructor)) int vltl_global_init(void) {
 __attribute__((destructor)) int vltl_global_deinit(void) {
     vltl_global_table_deinit();
     vltl_global_errors_deinit();
-    vltl_global_allocator_deinit();
     vltl_global_registers_deinit();
     vltl_global_context_deinit();
     vltl_global_config_deinit();
+    vltl_global_allocator_deinit();
 
     return 0;
 }
