@@ -891,74 +891,76 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
     Vltl_ast_tree ast_tree = { 0 };
     Vltl_sast_tree sast_tree = { 0 };
 
-    char *debug_buf = NULL;
-    const size_t debug_buf_cap = 9999;
     size_t debug_buf_len = 0;
     FILE *debug_file = NULL;
 
     // lexer
-    ret = vltl_lexer_line_convert(&line, src_line);
-    if(ret) {
-        return ret;
-    }
+    {
+        ret = vltl_lexer_line_convert(&line, src_line);
+        if(ret) {
+            return ret;
+        }
 
-    if(line.token_count == 0) {
-        fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
-        fputs("\n", dest);
-        return 0;
+        if(line.token_count == 0) {
+            fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
+            fputs("\n", dest);
+            return 0;
+        }
     }
 
     // ast tree
-    ret = vltl_ast_tree_convert(&ast_tree, &line);
+    {
+#if VLTL_DEBUG == 1
+        const bool dump_ast = true;
+#else
+        const bool dump_ast = false;
+#endif
 
-    #if VLTL_DEBUG == 1
-    bool dump_ast = true;
-    #else
-    bool dump_ast = false;
-    #endif
-    if(dump_ast) {
-        debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
-        vltl_ast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, ast_tree);
-        debug_file = fopen("scratch/ast_debug.dot", "w");
-        assert(debug_file != NULL);
-        fputs(debug_buf, debug_file);
-        fclose(debug_file);
-        if(ret) {
-            return ret;
+        // convert
+        ret = vltl_ast_tree_convert(&ast_tree, &line);
+        if(dump_ast) {
+            vltl_ast_tree_detokenize(vltl_global_scratch_buffer, VLTL_GLOBAL_SCRATCH_BUFFER_CAP, &debug_buf_len, ast_tree);
+            debug_file = fopen("scratch/ast_0.dot", "w");
+            assert(debug_file != NULL);
+            fputs(vltl_global_scratch_buffer, debug_file);
+            fclose(debug_file);
+            if(ret) {
+                return ret;
+            }
         }
-    }
 
-    bool done_now = false;
-    IESTACK_HANDLE(vltl_reshape_ast_tree(&ast_tree, &done_now), "Reshaping failed!");
-    if(done_now) {
-        return 0;
+        // reshape
+        bool done_now = false;
+        IESTACK_HANDLE(vltl_reshape_ast_tree(&ast_tree, &done_now), "Reshaping failed!");
+        if(dump_ast) {
+            vltl_ast_tree_detokenize(vltl_global_scratch_buffer, VLTL_GLOBAL_SCRATCH_BUFFER_CAP, &debug_buf_len, ast_tree);
+            debug_file = fopen("scratch/ast_1_reshape.dot", "w");
+            assert(debug_file != NULL);
+            fputs(vltl_global_scratch_buffer, debug_file);
+            fclose(debug_file);
+            if(ret) {
+                return ret;
+            }
+        }
+
+        if(done_now) {
+            return 0;
+        }
     }
 
     // sast tree
-    ret = vltl_sast_tree_convert(&sast_tree, &ast_tree);
-    #if VLTL_DEBUG == 1
-    bool dump_sast = true;
-    #else
-    bool dump_sast = false;
-    #endif
-    if(dump_sast) {
-        debug_buf = varena_alloc(&vltl_global_allocator, debug_buf_cap);
-        vltl_sast_tree_detokenize(debug_buf, debug_buf_cap, &debug_buf_len, sast_tree);
-        debug_file = fopen("scratch/sast_debug.dot", "w");
-        assert(debug_file != NULL);
-        fputs(debug_buf, debug_file);
-        fclose(debug_file);
-        if(ret) {
-            return ret;
-        }
+    {
+        IESTACK_HANDLE(vltl_sast_tree_convert(&sast_tree, &ast_tree), "Unable to convert ast tree to sast tree!");
     }
 
     // compile
-    fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
-    ret = vltl_compile_convert(dest, &sast_tree);
-    fputs("\n", dest);
-    if(ret) {
-        return ret;
+    {
+        fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
+        ret = vltl_compile_convert(dest, &sast_tree);
+        fputs("\n", dest);
+        if(ret) {
+            return ret;
+        }
     }
 
     // debug

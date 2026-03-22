@@ -15,6 +15,10 @@ bool vltl_lang_type_integral_valid(const Vltl_lang_type_integral type_integral) 
     return true;
 }
 
+Vltl_lang_type_attribute vltl_lang_type_attribute_atomic = {
+    .attribute_kind = VLTL_LANG_TYPE_ATTRIBUTE_KIND_ATOMIC,
+    .name = "atomic"
+};
 Vltl_lang_type_attribute vltl_lang_type_attribute_signed = {
     .attribute_kind = VLTL_LANG_TYPE_ATTRIBUTE_KIND_SIGNED,
     .name = "signed"

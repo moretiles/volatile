@@ -1,0 +1,6 @@
+function simple_attributes_main ( ) {
+    local simple_locals_c: long = 1
+    local simple_locals_d: atomic signed long = 2
+
+    return simple_locals_c + simple_locals_d + simple_locals_c
+}

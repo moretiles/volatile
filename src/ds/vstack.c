@@ -97,6 +97,15 @@ int vstack_destroy(Vstack *stack) {
     return 0;
 }
 
+int vstack_clear(Vstack *stack) {
+    if(stack == NULL) {
+        return EINVAL;
+    }
+
+    stack->stored = 0;
+    return 0;
+}
+
 int vstack_push(Vstack *stack, void *src) {
     void *pushed;
     if(stack == NULL || stack->elems == NULL || src == NULL) {

@@ -23,6 +23,8 @@ extern "C" {
 #define VLTL_GLOBAL_REGISTERS_AMD64_RESERVED (2)
 #define VLTL_GLOBAL_REGISTERS_AMD64_INUSE (2)
 
+#define VLTL_GLOBAL_SCRATCH_BUFFER_CAP (1024 * 1024)
+
 typedef struct vltl_global_config {
     Vltl_isa isa;
 
@@ -140,6 +142,10 @@ int vltl_global_allocator_deinit(void);
 int vltl_global_errors_init(void);
 int vltl_global_errors_deinit(void);
 
+// initialize the global scratch
+int vltl_global_scratch_init(void);
+int vltl_global_scratch_deinit(void);
+
 // initialize the global tables
 int vltl_global_table_init(void);
 int vltl_global_table_deinit(void);
@@ -191,6 +197,9 @@ extern struct vltl_global_context vltl_global_context;
 extern struct vltl_global_registers vltl_global_registers;
 extern struct varena *vltl_global_allocator;
 extern struct iestack *vltl_global_errors;
+extern char *vltl_global_scratch_buffer;
+extern Vstack *vltl_global_scratch_ast;
+extern Vstack *vltl_global_scratch_sast;
 
 extern struct nkht *vltl_global_table_constants;
 extern struct nkht *vltl_global_table_globals;

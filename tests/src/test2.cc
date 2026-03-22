@@ -38,6 +38,7 @@ extern "C" {
     long index_into_main(void);
     long external_function_main(void);
     long write_chars_main(void);
+    long simple_attributes_main(void);
     long tour_de_force_main(void);
 }
 
@@ -166,6 +167,11 @@ TEST(file, write_chars) {
     // TODO: Implement strings so that this works normally
     ASSERT_EQ(0, write_chars_main());
 }
+
+TEST(file, simple_attributes) {
+    ASSERT_EQ(4, simple_attributes_main());
+}
+
 
 TEST(file, tour_de_force) {
     ASSERT_EQ(95, tour_de_force_main());

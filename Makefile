@@ -57,6 +57,7 @@ test_asm_files += tests/fullpass/address_indirection.bin.S
 test_asm_files += tests/fullpass/index_into.bin.S
 test_asm_files += tests/fullpass/external_function.bin.S
 test_asm_files += tests/fullpass/write_chars.bin.S
+test_asm_files += tests/fullpass/simple_attributes.bin.S
 test_asm_files += tests/fullpass/tour_de_force.bin.S
 
 #######################################################################

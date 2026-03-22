@@ -54,6 +54,9 @@ int vstack_deinit(Vstack *stack);
  */
 int vstack_destroy(Vstack *stack);
 
+// Clear stack by setting length to 0
+int vstack_clear(Vstack *stack);
+
 // Pushes contents of src into stack.
 int vstack_push(Vstack *stack, void *src);
 
