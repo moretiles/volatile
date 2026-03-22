@@ -133,6 +133,9 @@ bool vltl_sast_operation_valid(const Vltl_sast_operation operation);
 // Check whether a Vltl_sast_operation is incomplete
 bool vltl_sast_operation_incomplete(const Vltl_sast_operation operation);
 
+// Check whether a Vltl_sast_operation accepts a variable number of arguments
+bool vltl_sast_operation_variable_argc(const Vltl_sast_operation operation);
+
 // Discover how many arguments an operation_kind expects
 size_t vltl_sast_operation_expected_argc(const Vltl_sast_operation operation);
 

@@ -73,6 +73,10 @@ bool vltl_sast_operation_valid(const Vltl_sast_operation operation) {
     return vltl_sast_operation_kind_valid(operation.kind);
 }
 
+bool vltl_sast_operation_variable_argc(const Vltl_sast_operation operation) {
+    return operation.kind == VLTL_SAST_OPERATION_KIND_CSV;
+}
+
 int vltl_sast_operation_insert(
     Vltl_sast_tree *tree,
     Vltl_sast_operation *parent,
@@ -2257,7 +2261,7 @@ int vltl_sast_operation_convert_amd64_csv(
     (void) future_parent;
 
     // csv can have variable number
-    for(size_t i = 0; i < vltl_ast_operation_expected_argc(*src); i++) {
+    for(size_t i = 0; i < vltl_ast_operation_argc(*src); i++) {
         vstack_push(insert_below_next, &csv_operation);
     }
     return 0;
@@ -3123,7 +3127,12 @@ static int vltl_sast_tree_convert_helper(
     ret = vstack_pop(sast_operations_to_insert_below, &insert_below);
     if(ret == 0) {
         insert_below_argc = vltl_sast_operation_args_argc(*insert_below);
-        if(insert_below_argc >= vltl_sast_operation_expected_argc(*insert_below)) {
+
+        if(
+            !vltl_sast_operation_variable_argc(*insert_below)
+            &&
+            insert_below_argc >= vltl_sast_operation_expected_argc(*insert_below)
+        ) {
             ret = EXFULL;
             IESTACK_PUSH2(
                 vltl_global_errors, ret,
@@ -3168,69 +3177,6 @@ static int vltl_sast_tree_convert_helper(
             break;
         }
     }
-    return 0;
-}
-
-int vltl_sast_tree_reshape_comma(Vltl_sast_tree *tree, Vltl_sast_operation *operation) {
-    if(tree == NULL) {
-        IESTACK_RETURN(EINVAL, "tree is NULL!");
-    } else if(operation == NULL) {
-        IESTACK_RETURN(EINVAL, "operation is NULL!");
-    }
-
-    operation->kind = VLTL_SAST_OPERATION_KIND_CSV;
-    size_t first_unused_index = 0;
-    Vltl_sast_operation *lchild = operation->lchild;
-    Vltl_sast_operation *rchild = operation->rchild;
-
-    if(lchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
-        bool done = false;
-        size_t i = 0;
-        for(
-            i = 0;
-            !done &&
-            i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
-            first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
-            i++
-        ) {
-            if(lchild->arguments[i] == NULL) {
-                done = true;
-                break;
-            }
-
-            operation->arguments[first_unused_index++] = lchild->arguments[i];
-            lchild->arguments[i]->parent = operation;
-        }
-    } else {
-        first_unused_index++;
-    }
-
-    if(first_unused_index >= VLTL_SAST_OPERATION_ARGUMENTS_MAX) {
-        IESTACK_RETURN(EXFULL, "Too many children of left CSV!");
-    }
-
-    if(rchild->kind == VLTL_SAST_OPERATION_KIND_CSV) {
-        bool done = false;
-        size_t i = 0;
-        for(
-            i = 0;
-            !done &&
-            i < VLTL_SAST_OPERATION_ARGUMENTS_MAX &&
-            first_unused_index < VLTL_SAST_OPERATION_ARGUMENTS_MAX;
-            i++
-        ) {
-            if(rchild->arguments[i] == NULL) {
-                done = true;
-                break;
-            }
-
-            operation->arguments[first_unused_index++] = rchild->arguments[i];
-            rchild->arguments[i]->parent = operation;
-        }
-    } else {
-        operation->arguments[first_unused_index++] = rchild;
-    }
-
     return 0;
 }
 
@@ -3411,9 +3357,6 @@ int vltl_sast_tree_reshape_recurse(Vltl_sast_tree *tree, Vltl_sast_operation *op
     case VLTL_SAST_OPERATION_KIND_EVAL:
         IESTACK_HANDLE(vltl_sast_tree_reshape_eval(tree, operation), "Failed to reshape eval operation!");
         break;
-    case VLTL_SAST_OPERATION_KIND_COMMA:
-        IESTACK_HANDLE(vltl_sast_tree_reshape_comma(tree, operation), "Failed to reshape comma operation!");
-        break;
     case VLTL_SAST_OPERATION_KIND_CALL:
         IESTACK_HANDLE(vltl_sast_tree_reshape_call(tree, operation), "Failed to reshape call operation!");
         break;
@@ -3436,6 +3379,7 @@ int vltl_sast_tree_reshape(Vltl_sast_tree *tree) {
 
 int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
     int ret = 0;
+    size_t debug_buf_len = 0;
     Vstack *ast_operations_to_visit = NULL;
     Vstack *sast_operations_to_insert_below = NULL;
     if(dest == NULL || src == NULL) {
@@ -3448,8 +3392,10 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
         goto vltl_sast_tree_convert_error;
     }
 
-    ast_operations_to_visit = vstack_create(sizeof(Vltl_ast_operation *), 999);
-    sast_operations_to_insert_below = vstack_create(sizeof(Vltl_sast_operation *), 999);
+    vstack_clear(vltl_global_scratch_ast);
+    ast_operations_to_visit = vltl_global_scratch_ast;
+    vstack_clear(vltl_global_scratch_sast);
+    sast_operations_to_insert_below = vltl_global_scratch_sast;
     ret = vstack_push(ast_operations_to_visit, &(src->root));
     if(ret) {
         IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vstack_push!");
@@ -3467,26 +3413,60 @@ int vltl_sast_tree_convert(Vltl_sast_tree *dest, Vltl_ast_tree *src) {
         }
     }
 
+#if VLTL_DEBUG == 1
+    const bool dump_sast = true;
+#else
+    const bool dump_sast = false;
+#endif
+
+    // convert
+    if(dump_sast) {
+        vltl_sast_tree_detokenize(vltl_global_scratch_buffer, VLTL_GLOBAL_SCRATCH_BUFFER_CAP, &debug_buf_len, *dest);
+        FILE *debug_file = fopen("scratch/sast_0.dot", "w");
+        assert(debug_file != NULL);
+        fputs(vltl_global_scratch_buffer, debug_file);
+        fclose(debug_file);
+        if(ret) {
+            return ret;
+        }
+    }
+    if(ret) {
+        IESTACK_RETURN2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_convert!");
+    }
+
     // reshape
     ret = vltl_sast_tree_reshape(dest);
+    if(dump_sast) {
+        vltl_sast_tree_detokenize(vltl_global_scratch_buffer, VLTL_GLOBAL_SCRATCH_BUFFER_CAP, &debug_buf_len, *dest);
+        FILE *debug_file = fopen("scratch/sast_1_reshape.dot", "w");
+        assert(debug_file != NULL);
+        fputs(vltl_global_scratch_buffer, debug_file);
+        fclose(debug_file);
+        if(ret) {
+            return ret;
+        }
+    }
     if(ret) {
-        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_reshape!");
-        goto vltl_sast_tree_convert_error;
+        IESTACK_RETURN2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_reshape!");
     }
 
     // connect
     ret = vltl_sast_tree_connect(dest);
+    if(dump_sast) {
+        vltl_sast_tree_detokenize(vltl_global_scratch_buffer, VLTL_GLOBAL_SCRATCH_BUFFER_CAP, &debug_buf_len, *dest);
+        FILE *debug_file = fopen("scratch/sast_2_connect.dot", "w");
+        assert(debug_file != NULL);
+        fputs(vltl_global_scratch_buffer, debug_file);
+        fclose(debug_file);
+        if(ret) {
+            return ret;
+        }
+    }
     if(ret) {
-        IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect!");
-        goto vltl_sast_tree_convert_error;
+        IESTACK_RETURN2(vltl_global_errors, ret, "Unexpected failure when calling vltl_sast_tree_connect!");
     }
 
-    // optimize?
-
 vltl_sast_tree_convert_error:
-    vstack_destroy(ast_operations_to_visit);
-    vstack_destroy(sast_operations_to_insert_below);
-
     return ret;
 }
 

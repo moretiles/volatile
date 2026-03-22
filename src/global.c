@@ -18,6 +18,9 @@ Vltl_global_context vltl_global_context = { 0 };
 Vltl_global_registers vltl_global_registers = { 0 };
 Varena *vltl_global_allocator = NULL;
 Iestack *vltl_global_errors = NULL;
+char *vltl_global_scratch_buffer = NULL;
+Vstack *vltl_global_scratch_ast = NULL;
+Vstack *vltl_global_scratch_sast = NULL;
 
 Nkht *vltl_global_table_constants = NULL;
 Nkht *vltl_global_table_globals = NULL;
@@ -252,11 +255,13 @@ __attribute__((constructor)) int vltl_global_init(void) {
     vltl_global_registers_init();
     vltl_global_errors_init();
     vltl_global_table_init();
+    vltl_global_scratch_init();
 
     return 0;
 }
 
 __attribute__((destructor)) int vltl_global_deinit(void) {
+    vltl_global_scratch_deinit();
     vltl_global_table_deinit();
     vltl_global_errors_deinit();
     vltl_global_registers_deinit();
@@ -370,6 +375,25 @@ int vltl_global_errors_deinit(void) {
     iestack_destroy(vltl_global_errors);
     vltl_global_errors = NULL;
     iestack_global_errors = NULL;
+
+    return 0;
+}
+
+int vltl_global_scratch_init(void) {
+    vltl_global_scratch_buffer = calloc(1, 9999);
+    vltl_global_scratch_ast = vstack_create(sizeof(void *), 999);
+    vltl_global_scratch_sast = vstack_create(sizeof(void *), 999);
+
+    return 0;
+}
+
+int vltl_global_scratch_deinit(void) {
+    free(vltl_global_scratch_buffer);
+    vltl_global_scratch_buffer = NULL;
+    vstack_destroy(vltl_global_scratch_ast);
+    vltl_global_scratch_ast = NULL;
+    vstack_destroy(vltl_global_scratch_sast);
+    vltl_global_scratch_sast = NULL;
 
     return 0;
 }
@@ -542,6 +566,10 @@ int vltl_global_table_attributes_init(void) {
         exit(ENOMEM);
     }
 
+    current_attribute_ptr = &vltl_lang_type_attribute_atomic;
+    assert(0 == nkht_set(
+               vltl_global_table_attributes, current_attribute_ptr->name, &current_attribute_ptr)
+          );
     current_attribute_ptr = &vltl_lang_type_attribute_signed;
     assert(0 == nkht_set(
                vltl_global_table_attributes, current_attribute_ptr->name, &current_attribute_ptr)

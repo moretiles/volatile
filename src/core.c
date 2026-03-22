@@ -45,13 +45,13 @@ int main(int argc, char *argv[]) {
     int ret = vltl_compile_file(destination_filename, source_filename);
 
     if(destination_filename) {
-    free(destination_filename);
+        free(destination_filename);
         destination_filename = NULL;
     }
 
     if(ret) {
-    return EXIT_FAILURE;
-} else {
-    return EXIT_SUCCESS;
-}
+        return EXIT_FAILURE;
+    } else {
+        return EXIT_SUCCESS;
+    }
 }

@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define VLTL_LANG_TYPE_ATTRIBUTES_CAP (8)
+
 /*
 // assumptions:
 // kind for type changes rarely as it represents what a type actually is
@@ -150,6 +152,7 @@ typedef enum vltl_lang_type_attribute_kind {
     VLTL_LANG_TYPE_ATTRIBUTE_KIND_UNSET,
     VLTL_LANG_TYPE_ATTRIBUTE_KIND_INVALID,
 
+    VLTL_LANG_TYPE_ATTRIBUTE_KIND_ATOMIC,
     VLTL_LANG_TYPE_ATTRIBUTE_KIND_SIGNED,
     VLTL_LANG_TYPE_ATTRIBUTE_KIND_UNSIGNED
 } Vltl_lang_type_attribute_kind;
@@ -164,12 +167,13 @@ typedef struct vltl_lang_type {
     Vltl_lang_type_integral integral_type;
 
     // only relevant when (integral_type == VLTL_LANG_TYPE_INTEGRAL_USERDEFINED)
-    struct vltl_lang_type *accepted_fields[8];
+    struct vltl_lang_type *accepted_fields[VLTL_LANG_TYPE_ATTRIBUTES_CAP];
 } Vltl_lang_type;
 
 bool vltl_lang_type_integral_valid(const Vltl_lang_type_integral type_integral);
 
 // attributes
+extern Vltl_lang_type_attribute vltl_lang_type_attribute_atomic;
 extern Vltl_lang_type_attribute vltl_lang_type_attribute_signed;
 extern Vltl_lang_type_attribute vltl_lang_type_attribute_unsigned;
 

@@ -121,6 +121,7 @@ int vltl_ast_operation_precedence_determine(Vltl_ast_operation_precedence *dest,
 
     switch(src.kind) {
     case VLTL_AST_OPERATION_KIND_EVAL:
+    case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
     case VLTL_AST_OPERATION_KIND_BODY_OPEN:
     case VLTL_AST_OPERATION_KIND_BODY_CLOSE:
     case VLTL_AST_OPERATION_KIND_GROUPING_CLOSE:
@@ -211,6 +212,9 @@ int vltl_ast_operation_kind_detokenize(
     }
 
     switch(src) {
+    case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
+        src_string = "attribute";
+        break;
     case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
         src_string = "[";
         break;
@@ -491,6 +495,7 @@ int vltl_ast_tree_detokenize(char *dest, size_t dest_cap, size_t *dest_len, cons
 
 bool vltl_ast_operation_kind_valid(const Vltl_ast_operation_kind operation_kind) {
     switch(operation_kind) {
+    case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
     case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
     case VLTL_AST_OPERATION_KIND_INDEX_CLOSE:
     case VLTL_AST_OPERATION_KIND_GROUPING_OPEN:
@@ -553,6 +558,9 @@ size_t vltl_ast_operation_argc(const Vltl_ast_operation operation) {
 
 size_t vltl_ast_operation_expected_argc(const Vltl_ast_operation operation) {
     switch(operation.kind) {
+    case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
+        return 1;
+        break;
     case VLTL_AST_OPERATION_KIND_INDEX_OPEN:
         return 3;
         break;
@@ -973,6 +981,9 @@ int vltl_ast_tree_insert(Vltl_ast_tree *tree, Vltl_ast_operation *pushed) {
         }
     }
 
+    if(vltl_ast_operation_argc(*pushed) >= vltl_ast_operation_expected_argc(*pushed)) {
+        printf("hi there!");
+    }
     IESTACK_SUPPOSE(
         vltl_ast_operation_argc(*pushed) < vltl_ast_operation_expected_argc(*pushed),
         EINVAL,
@@ -1077,6 +1088,20 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
 
         switch(src->tokens[i].token.kind) {
         case VLTL_LANG_TOKEN_KIND_ATTRIBUTE:
+            operation_kind = VLTL_AST_OPERATION_KIND_ATTRIBUTE;
+            evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));
+            if(evaluates_to == NULL) {
+                return ENOMEM;
+            }
+
+            evaluates_to->kind = VLTL_LANG_TOKEN_KIND_ATTRIBUTE;
+            evaluates_to->attribute = src->tokens[i].token.attribute;
+            result_type = &vltl_lang_type_long;
+            ret = vltl_ast_operation_init(push_this, operation_kind, evaluates_to, result_type);
+            break;
+
+            return ENOTRECOVERABLE;
+            break;
         case VLTL_LANG_TOKEN_KIND_TYPE:
             operation_kind = VLTL_AST_OPERATION_KIND_EVAL;
             evaluates_to = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_token));

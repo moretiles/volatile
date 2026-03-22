@@ -460,6 +460,37 @@ int vltl_reshape_ast_tree_recurse_comma(Vltl_ast_tree *tree, Vltl_ast_operation 
     return 0;
 }
 
+int vltl_reshape_ast_tree_recurse_attribute(Vltl_ast_tree *tree, Vltl_ast_operation *operation) {
+    if(tree == NULL) {
+        IESTACK_RETURN(EINVAL, "tree is NULL!");
+    } else if(operation == NULL) {
+        IESTACK_RETURN(EINVAL, "operation is NULL!");
+    }
+
+    Vltl_lang_type_attribute attributes_collected[VLTL_LANG_TYPE_ATTRIBUTES_CAP] = { 0 };
+    size_t attributes_collected_index = 0;
+
+    bool done = false;
+    Vltl_ast_operation *child = operation->lchild;
+    for(child = operation; !done && child != NULL; child = child->lchild) {
+        switch(child->kind) {
+        case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
+            attributes_collected[attributes_collected_index++] = *(operation->evaluates_to->attribute);
+            break;
+        case VLTL_AST_OPERATION_KIND_EVAL:
+            IESTACK_SUPPOSE(child->evaluates_to->kind == VLTL_LANG_TOKEN_KIND_TYPE, EINVAL, "Bad type used!");
+            child->parent = operation->parent;
+            *operation = *child;
+            break;
+        default:
+            IESTACK_RETURN(EINVAL, "Bad attribute used to instantiate type!");
+            break;
+        }
+    }
+
+    return 0;
+}
+
 int vltl_reshape_ast_tree_recurse(Vltl_ast_tree *tree, Vltl_ast_operation *operation) {
     int ret = 0;
     if(tree == NULL || operation == NULL) {
@@ -483,6 +514,9 @@ int vltl_reshape_ast_tree_recurse(Vltl_ast_tree *tree, Vltl_ast_operation *opera
     case VLTL_AST_OPERATION_KIND_COMMA:
         IESTACK_HANDLE(vltl_reshape_ast_tree_recurse_comma(tree, operation), "Failed to reshape comma operation!");
         break;
+    case VLTL_AST_OPERATION_KIND_ATTRIBUTE:
+        IESTACK_HANDLE(vltl_reshape_ast_tree_recurse_attribute(tree, operation), "Failed to reshape comma operation!");
+        break;
     default:
         break;
     }
@@ -493,6 +527,8 @@ int vltl_reshape_ast_tree_recurse(Vltl_ast_tree *tree, Vltl_ast_operation *opera
 int vltl_reshape_ast_tree(Vltl_ast_tree *tree, bool *done_now) {
     IESTACK_SUPPOSE(tree != NULL, EINVAL, "Tree is null!");
     IESTACK_SUPPOSE(done_now != NULL, EINVAL, "Boolean done_now is null!");
+
+    IESTACK_HANDLE(vltl_reshape_ast_tree_recurse(tree, tree->root), "Failure recursively reshaping ast tree!");
 
     *done_now = false;
     switch(tree->root->kind) {
@@ -505,23 +541,22 @@ int vltl_reshape_ast_tree(Vltl_ast_tree *tree, bool *done_now) {
     case VLTL_AST_OPERATION_KIND_CONSTANT:
         IESTACK_HANDLE(
             vltl_reshape_ast_tree_constant(tree, done_now),
-            "Reshaping tree with external root node failed!"
+            "Reshaping tree with constant root node failed!"
         );
         break;
     case VLTL_AST_OPERATION_KIND_GLOBAL:
         IESTACK_HANDLE(
             vltl_reshape_ast_tree_global(tree, done_now),
-            "Reshaping tree with external root node failed!"
+            "Reshaping tree with global root node failed!"
         );
         break;
     case VLTL_AST_OPERATION_KIND_LOCAL:
         IESTACK_HANDLE(
             vltl_reshape_ast_tree_local(tree, done_now),
-            "Reshaping tree with external root node failed!"
+            "Reshaping tree with local root node failed!"
         );
         break;
     case VLTL_AST_OPERATION_KIND_FUNCTION:
-        IESTACK_HANDLE(vltl_reshape_ast_tree_recurse(tree, tree->root), "Failure recursively reshaping ast tree!");
         IESTACK_HANDLE(
             vltl_reshape_ast_tree_function(tree, done_now),
             "Reshaping tree with function root node failed!"
