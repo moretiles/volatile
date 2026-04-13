@@ -36,10 +36,11 @@ test1
 test2
 
 # exe
-vltl
-vltl.exe
-examples/*.bin
-examples/*.bin.S
+/vltl
+/vltl.exe
+/vltl_amd64_*
+/examples/*.bin
+/examples/*.bin.S
 
 # directory for random stuff
 /scratch/[^.]*
