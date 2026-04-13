@@ -38,7 +38,7 @@ int iestack_error_init(
 );
 void iestack_error_deinit(Iestack_error *error);
 
-Iestack *iestack_create();
+Iestack *iestack_create(void);
 int iestack_init(Iestack *stack);
 void iestack_deinit(Iestack *stack);
 void iestack_destroy(Iestack *stack);

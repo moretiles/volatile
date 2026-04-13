@@ -17,7 +17,7 @@ void vltl_error_line(const Vltl_lexer_line bad_line) {
 
     iestack_dump(vltl_global_errors, stderr);
 
-    BTRC_SNPRINTF(&ret, &len, vltl_error_buf, VLTL_ERROR_BUF_CAP, "Error at line: %lu!", bad_line.linenumber);
+    BTRC_SNPRINTF(&ret, &len, vltl_error_buf, VLTL_ERROR_BUF_CAP, "Error at line: %zu!", bad_line.linenumber);
     vltl_error(vltl_error_buf);
     BTRC_SNPRINTF(&ret, &len, vltl_error_buf, VLTL_ERROR_BUF_CAP, "Bad line: %s", bad_line.text);
     fputs(vltl_error_buf, stderr);

@@ -37,6 +37,7 @@ test2
 
 # exe
 vltl
+vltl.exe
 examples/*.bin
 examples/*.bin.S
 

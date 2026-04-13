@@ -9,7 +9,15 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+
+#if _WIN32
+#include <windows.h>
+#include <bcrypt.h>
+#define getrandom(buf, len, flags) BCryptGenRandom(NULL, buf, len, BCRYPT_USE_SYSTEM_PREFERRED_RNG)
+#else
 #include <sys/random.h>
+#endif
+
 
 // Initialize with dummy value of 0 that will be overwritten
 uint8_t nkht_hash_salt[NKHT_HASH_SALT_LEN_EXPECTED] = { 0 };
