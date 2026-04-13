@@ -39,6 +39,7 @@ test2
 /vltl
 /vltl.exe
 /vltl_amd64_*
+/vltl_i686_*
 /examples/*.bin
 /examples/*.bin.S
 

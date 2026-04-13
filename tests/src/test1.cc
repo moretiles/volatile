@@ -320,6 +320,13 @@ TEST(fullpass, write_chars) {
     ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
 }
 
+TEST(fullpass, write_several_strings) {
+    vltl_global_init();
+    char dest_filename[] = "tests/fullpass/write_several_strings.bin";
+    char src_filename[] = "tests/fullpass/write_several_strings.vltl";
+    ASSERT_FALSE(vltl_compile_file(dest_filename, src_filename));
+}
+
 TEST(fullpass, simple_attributes) {
     vltl_global_init();
     char dest_filename[] = "tests/fullpass/simple_attributes.bin";
