@@ -27,5 +27,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vltl-${{ matrix.target }}-${{ github.sha }}
-          path: vltl-${{ matrix.target }}
+          name: ${{ matrix.target }}-${{ github.sha }}
+          path: ${{ matrix.target }}
