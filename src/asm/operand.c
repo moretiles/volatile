@@ -1,3 +1,6 @@
+#include <errno.h>
+#include <string.h>
+
 #include <global.h>
 #include <isa.h>
 #include <lang/type.h>
@@ -5,9 +8,6 @@
 #include <asm/operand.h>
 #include <lang/local.h>
 #include <ds/btrc.h>
-
-#include <errno.h>
-#include <string.h>
 
 bool vltl_asm_operand_valid(const Vltl_asm_operand operand) {
     switch(operand.kind) {
@@ -254,7 +254,7 @@ int vltl_asm_operand_memory_amd64_detokenize(
         if(ret) {
             return ret;
         }
-        BTRC_SNPRINTF(&ret, &buf_len_helper, buf, buf_cap, "-%lu[%%rbp]", local->frame_offset);
+        BTRC_SNPRINTF(&ret, &buf_len_helper, buf, buf_cap, "-%zu[%%rbp]", local->frame_offset);
         break;
     case VLTL_ASM_OPERAND_MEMORY_KIND_GLOBAL:
         if(vltl_global_config.pic_enabled) {
@@ -372,7 +372,7 @@ int vltl_asm_operand_immediate_amd64_detokenize(
     case VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE10:
     case VLTL_ASM_OPERAND_IMMEDIATE_REPRESENTATION_BASE16:
         // output as unsigned base10 no matter the representation format when compiling
-        BTRC_SNPRINTF(&ret, &buf_len_helper, buf, buf_cap, "%lu", (uint64_t) operand.value);
+        BTRC_SNPRINTF(&ret, &buf_len_helper, buf, buf_cap, "%zd", (uint64_t) operand.value);
         *buf_len = (size_t) buf_len_helper;
         break;
     default:

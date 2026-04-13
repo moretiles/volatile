@@ -404,7 +404,7 @@ static int vltl_ast_tree_detokenize_recurse(
 
     BTRC_SNPRINTF(&ret, &dest_len_helper2,
                   &(dest[dest_offset]), dest_cap - dest_offset,
-                  "node_%lu [label=\"", *monotonic_index
+                  "node_%zu [label=\"", *monotonic_index
                  );
     //if(ret) { return ret; }
     IESTACK_HANDLE(ret, "sprintf failed!");
@@ -425,7 +425,7 @@ static int vltl_ast_tree_detokenize_recurse(
     if(initial_value_of_monotonic_index == parent_index) {
         // this is the root node, don't draw vector
     } else {
-        BTRC_SNPRINTF(&ret, &dest_len_helper2, &(dest[dest_offset]), dest_cap, "node_%lu -> node_%lu;\n", parent_index, *monotonic_index);
+        BTRC_SNPRINTF(&ret, &dest_len_helper2, &(dest[dest_offset]), dest_cap, "node_%zu -> node_%zu;\n", parent_index, *monotonic_index);
         IESTACK_HANDLE(ret, "sprintf failed!");
 
         dest_offset += (size_t) dest_len_helper2;

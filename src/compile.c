@@ -233,7 +233,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
             }
         }
         vltl_global_context.bodies[vltl_global_context.indentation_level - 1].body_kind = body_kind;
-        fprintf(dest, "%lu:\n", label_value);
+        fprintf(dest, "%zu:\n", label_value);
 
         break;
     case VLTL_SAST_OPERATION_KIND_BODY_CLOSE:
@@ -253,7 +253,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
             vltl_lang_function_deinit(vltl_global_context.function);
             vltl_global_context.function = NULL;
             label_value += VLTL_LANG_BODY_LABEL_FUNCTION_CLOSE;
-            fprintf(dest, "%lu:\n", label_value);
+            fprintf(dest, "%zu:\n", label_value);
         } else {
             label_value = vltl_global_context.indentation_level * VLTL_LANG_BODY_LABEL_ITERATE;
             switch(vltl_global_context.bodies[vltl_global_context.indentation_level].body_kind) {
@@ -262,14 +262,14 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
             case VLTL_LANG_BODY_KIND_WHILE:
                 label_value += VLTL_LANG_BODY_LABEL_IFELIFELSE_CLOSE;
                 if(src->parent == NULL) {
-                    fprintf(dest, "%lu:\n", label_value);
+                    fprintf(dest, "%zu:\n", label_value);
                 } else {
-                    fprintf(dest, "jmp %luf\n", label_value);
+                    fprintf(dest, "jmp %zuf\n", label_value);
                 }
                 break;
             case VLTL_LANG_BODY_KIND_ELSE:
                 label_value += VLTL_LANG_BODY_LABEL_IFELIFELSE_CLOSE;
-                fprintf(dest, "%lu:\n", label_value);
+                fprintf(dest, "%zu:\n", label_value);
                 break;
             default:
                 break;
@@ -292,7 +292,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
             case VLTL_LANG_BODY_KIND_WHILE:
                 // Unconditional jump to start of loop because this is a loop
                 label_value += VLTL_LANG_BODY_LABEL_WHILE_OPEN;
-                fprintf(dest, "jmp %lub\n", label_value);
+                fprintf(dest, "jmp %zub\n", label_value);
                 label_value -= VLTL_LANG_BODY_LABEL_WHILE_OPEN;
 
                 label_value += VLTL_LANG_BODY_LABEL_WHILE_CLOSE;
@@ -304,7 +304,7 @@ int vltl_compile_operation_convert_label(FILE *dest, Vltl_sast_operation *src) {
                 IESTACK_RETURN(ENOTRECOVERABLE, "Some invalid operation once owned a body_open operation... maybe!");
                 break;
             }
-            fprintf(dest, "%lu:\n", label_value);
+            fprintf(dest, "%zu:\n", label_value);
         }
 
         break;
@@ -902,7 +902,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
         }
 
         if(line.token_count == 0) {
-            fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
+            fprintf(dest, "// line #%zu, indentation %zu\n", line_number, vltl_global_context.indentation_level);
             fputs("\n", dest);
             return 0;
         }
@@ -955,7 +955,7 @@ int vltl_compile_line(FILE *dest, const char *src_line, size_t line_number) {
 
     // compile
     {
-        fprintf(dest, "// line #%lu, indentation %lu\n", line_number, vltl_global_context.indentation_level);
+        fprintf(dest, "// line #%zu, indentation %zu\n", line_number, vltl_global_context.indentation_level);
         ret = vltl_compile_convert(dest, &sast_tree);
         fputs("\n", dest);
         if(ret) {
@@ -1316,7 +1316,7 @@ vltl_compile_file_debug:
             } else {
                 fprintf(
                     assembly_file,
-                    "%s: .quad %ld\n",
+                    "%s: .quad %zd\n",
                     iterated_global_key,
                     (int64_t) iterated_global_val->literal->fields[0]
                 );

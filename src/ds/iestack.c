@@ -45,7 +45,7 @@ void iestack_error_deinit(Iestack_error *error) {
     return;
 }
 
-Iestack *iestack_create() {
+Iestack *iestack_create(void) {
     Iestack *created_here = malloc(sizeof(Iestack));
     if(created_here == NULL) {
         return NULL;
@@ -168,7 +168,7 @@ int iestack_dump(Iestack *stack, FILE *dest) {
         }
         fprintf(dest, "        msg: %s\n", current_error.msg);
         fprintf(dest, "        filename: %s\n", current_error.filename);
-        fprintf(dest, "        linenumber: %lu\n", current_error.linenumber);
+        fprintf(dest, "        linenumber: %zu\n", current_error.linenumber);
         fprintf(dest, "    },\n");
     }
     fprintf(dest, "]\n");

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 int vltl_lang_token_stringify(
     char *dest,
@@ -20,7 +21,7 @@ int vltl_lang_token_stringify(
 
     switch(src.kind) {
     case VLTL_LANG_TOKEN_KIND_LITERAL:
-        BTRC_SNPRINTF(&ret, &dest_len_helper2, dest, dest_cap, "%ld", (int64_t) src.literal.fields[0]);
+        BTRC_SNPRINTF(&ret, &dest_len_helper2, dest, dest_cap, "%zd", (int64_t) src.literal.fields[0]);
         *dest_len = ((size_t) dest_len_helper2) + 1;
         break;
     case VLTL_LANG_TOKEN_KIND_CONSTANT:

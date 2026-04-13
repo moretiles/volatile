@@ -1,11 +1,14 @@
 CFLAGS=-Wall -Wextra -Wpedantic --std=gnu11 -fwrapv -fmax-errors=5 -Wno-unused-command-line-argument -Wno-unused-label -lm
 CXXFLAGS=-Wall -Wextra -Wpedantic --std=gnu++20 -fwrapv -Wno-missing-field-initializers -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-unused-command-line-argument
 DEBUG=-g3 -ggdb -DVLTL_DEBUG=1 -DNKHT_SIPHASH_RANDOMIZE_DISABLE=1
-OPTIMIZE=-O0
+OPTIMIZE=-O3
 
+STATIC=-static -static-libgcc -static-libstdc++
 INCLUDE=-I ./header/ -I ./src/
 INCLUDE_TEST=
 LIBRARIES=
+LIBRARIES_LINUX=
+LIBRARIES_WINDOWS=-lbcrypt
 LIBRARIES_TEST=-lgtest -lgtest_main
 
 ANALYZE_GCC=-fanalyzer
@@ -75,10 +78,16 @@ clean:
 
 ## recipes
 vltl: src/core.c libvltl.a
-	${CC} ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
+	${CC} ${STATIC} ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
 
 libvltl.a: ${objs}
 	ar rcs libvltl.a obj/*.o
+
+vltl_amd64_linux: src/core.c libvltl.a
+	clang ${STATIC} --target=x86_64-linux-gnu ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
+
+vltl_amd64_windows.exe: src/core.c libvltl.a
+	clang ${STATIC} --target=x86_64-windows-gnu -DEXFULL=54 ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES} ${LIBRARIES_WINDOWS}
 
 obj/asm.o: src/asm/*.c header/asm/*.h
 	${CC} ${DEBUG} ${CFLAGS} src/asm/core.c -c -o obj/asm.o ${INCLUDE} ${LIBRARIES}
