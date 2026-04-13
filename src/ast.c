@@ -7,6 +7,9 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+
+uint64_t interned_string_counter = 0;
 
 bool vltl_ast_operation_precedence_order_valid(const Vltl_ast_operation_precedence_order precedence_order) {
     switch(precedence_order) {
@@ -1055,25 +1058,40 @@ int vltl_ast_tree_convert(Vltl_ast_tree *dest, Vltl_lexer_line *src) {
                     }
                 }
 
-                // need to intern string as global because can't fit string in register
-                // also transform this string into global
                 {
+                    #define INTERNED_STRING_CAP (99LU)
+                    char *interned_string_name = varena_alloc(&vltl_global_allocator, INTERNED_STRING_CAP * sizeof(char));
+                    IESTACK_SUPPOSE(interned_string_name != NULL, ENOMEM, "No memory!");
+                    size_t ignore_len = 0;
+                    IESTACK_HANDLE(
+                        BTRC_SNPRINTF2(
+                                &ignore_len, interned_string_name, INTERNED_STRING_CAP, "__my_interned_string_%zu", interned_string_counter++
+                            ),
+                            "Counter is way too much!"
+                        );
+                    #undef INTERNED_STRING_CAP
+
                     Vltl_lang_global *created_global = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_global));
                     Vltl_lang_literal *created_literal = varena_alloc(&vltl_global_allocator, 1 * sizeof(Vltl_lang_literal));
-                    if(created_global == NULL || created_literal == NULL) {
+                    if(
+                        created_global == NULL
+                        ||
+                        created_literal == NULL
+                    ) {
                         ret = ENOMEM;
                         IESTACK_PUSH2(vltl_global_errors, ret, "Could not allocate enough memory!");
                         return ret;
                     }
+
                     *created_literal = src->tokens[i].token.literal;
                     *created_global = (Vltl_lang_global) {
-                        .name = "my_interned_string",
+                        .name = interned_string_name,
                         .type = &vltl_lang_type_nullstr,
                         .attributes = { 0 },
                         .literal = created_literal
                     };
 
-                    ret = nkht_set(vltl_global_table_globals, "my_interned_string", &created_global);
+                    ret = nkht_set(vltl_global_table_globals, interned_string_name, &created_global);
                     if(ret) {
                         IESTACK_PUSH2(vltl_global_errors, ret, "Unexpected failure calling nkht_set!");
                         return ret;

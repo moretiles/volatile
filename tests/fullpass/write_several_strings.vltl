@@ -1,0 +1,14 @@
+external function puts ( ) { }
+external function fputc ( ) { }
+
+function write_several_strings_main ( ) {
+    local a: nullstr = "Good morning everyone!"
+    local b: nullstr = "Good afternoon everyone!"
+    local c: nullstr = "Good night everyone!"
+
+    puts(a)
+    puts(b)
+    puts(c)
+
+    return 0
+}
