@@ -13,13 +13,15 @@ jobs:
       matrix:
         target:
           - vltl_amd64_linux
+          - vltl_i686_linux
           - vltl_amd64_windows.exe
+          - vltl_i686_windows.exe
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install deps
-        run: sudo apt update && sudo apt install -y make clang lld mingw-w64
+        run: sudo apt update && sudo apt install -y make clang gcc-multilib lld mingw-w64
 
       - name: Build
         run: make ${{ matrix.target }}
