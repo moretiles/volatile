@@ -84,10 +84,10 @@ libvltl.a: ${objs}
 	ar rcs libvltl.a obj/*.o
 
 vltl_amd64_linux: src/core.c libvltl.a
-	clang ${STATIC} --target=x86_64-linux-gnu ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES}
+	clang ${STATIC} --target=x86_64-linux-gnu ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl_amd64_linux ${INCLUDE} ${LIBRARIES}
 
 vltl_amd64_windows.exe: src/core.c libvltl.a
-	clang ${STATIC} --target=x86_64-windows-gnu -DEXFULL=54 ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl ${INCLUDE} ${LIBRARIES} ${LIBRARIES_WINDOWS}
+	clang ${STATIC} --target=x86_64-windows-gnu -DEXFULL=54 ${OPTIMIZE} ${CFLAGS} src/core.c -o vltl_amd64_windows ${INCLUDE} ${LIBRARIES} ${LIBRARIES_WINDOWS}
 
 obj/asm.o: src/asm/*.c header/asm/*.h
 	${CC} ${DEBUG} ${CFLAGS} src/asm/core.c -c -o obj/asm.o ${INCLUDE} ${LIBRARIES}
